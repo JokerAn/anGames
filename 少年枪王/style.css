@@ -19,3 +19,11 @@ body.playing{overflow:hidden;overscroll-behavior:none;background:#b9daca}#game-s
 @media(min-width:641px) and (max-width:800px){.map-picker{bottom:99px;flex-direction:column;left:auto;right:16px;width:112px}.map-option{padding:9px}.map-option small{display:none}.arena-sticker{top:202px;right:auto;left:26px}}
 @media(max-width:640px){.arena-card{min-height:395px}.map-picker{bottom:84px;left:14px;right:14px;gap:6px}.map-option{padding:10px 8px}.map-option strong{font-size:10px}.map-option small{font-size:7px}.arena-title{top:77px}.arena-title h2{font-size:33px}.arena-title p{max-width:200px;font-size:9px}.map-count{font-size:8px}.arena-bottom{padding:15px 17px}.arena-bottom strong{font-size:10px}.arena-bottom small{font-size:8px}#freelook-button{right:18px;top:45%;width:47px;height:47px}#orientation-hint{top:177px}}
 @media(max-height:550px) and (orientation:landscape){#freelook-button{top:38%;right:max(36px,env(safe-area-inset-right));width:45px;height:45px}#freelook-button span{font-size:22px}#freelook-button small{font-size:6px}#map-badge{font-size:7px}#freelook-hint{top:19%}.hud-left{gap:5px}#minimap{width:76px;height:76px}}
+/* Classic green crosshair: the aiming ray stays at the exact screen center. */
+#crosshair{--crosshair-gap:5px;width:52px;height:52px;filter:none;transform:translate(-50%,-50%)}
+#crosshair i{background:#78ff69;border-radius:0;box-shadow:0 0 0 1px #14251ddb;transition:top .055s,left .055s;bottom:auto;right:auto}
+#crosshair i:nth-child(1){width:2px;height:9px;left:calc(50% - 1px);top:calc(50% - var(--crosshair-gap) - 9px)}
+#crosshair i:nth-child(2){width:2px;height:9px;left:calc(50% - 1px);top:calc(50% + var(--crosshair-gap));bottom:auto}
+#crosshair i:nth-child(3){width:9px;height:2px;left:calc(50% - var(--crosshair-gap) - 9px);top:calc(50% - 1px)}
+#crosshair i:nth-child(4){width:9px;height:2px;left:calc(50% + var(--crosshair-gap));top:calc(50% - 1px);right:auto}
+#crosshair b{display:none}body.aiming #crosshair{transform:translate(-50%,-50%)}

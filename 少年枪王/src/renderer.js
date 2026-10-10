@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { WORLD, WEAPONS, getMap, cameraPose } from './simulation.js';
+import { WORLD, WEAPONS, getMap, cameraPose, wallDistance } from './simulation.js';
 const colors={blue:0x549ec6,red:0xec8c7e};
 const geometries={box:new THREE.BoxGeometry(1,1,1),sphere:new THREE.SphereGeometry(1,10,8),cylinder:new THREE.CylinderGeometry(1,1,1,12),cone:new THREE.ConeGeometry(1,1,6)};
 const mats=new Map();
@@ -8,6 +8,25 @@ function shape(parent,kind,color,pos,size,unlit=false){const mesh=new THREE.Mesh
 function box(parent,color,x,y,z,w,h,d){return shape(parent,'box',color,[x,y,z],[w,h,d]);}
 function sphere(parent,color,x,y,z,r){return shape(parent,'sphere',color,[x,y,z],[r,r,r]);}
 function label(text,color='#355748',background='#fffae8',width=256,height=96){const c=document.createElement('canvas');c.width=width;c.height=height;const ctx=c.getContext('2d');ctx.fillStyle=background;ctx.beginPath();ctx.roundRect(0,0,width,height,14);ctx.fill();ctx.fillStyle=color;ctx.font=`bold ${height*.42}px system-ui, sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,width/2,height/2);const texture=new THREE.CanvasTexture(c);texture.colorSpace=THREE.SRGBColorSpace;return new THREE.MeshBasicMaterial({map:texture,transparent:true});}
+function createHealthHud(){
+  const canvas=document.createElement('canvas');canvas.width=256;canvas.height=64;
+  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
+  const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthTest:true,depthWrite:false,sizeAttenuation:false}));
+  sprite.position.y=2.2;sprite.renderOrder=2;
+  return {sprite,canvas,texture,key:'',value:100};
+}
+function paintHealth(hud,actor,friendly){
+  const hp=Math.max(0,Math.min(100,Math.ceil(actor.hp))),shield=actor.shield>0;
+  const key=`${hp}|${shield}|${friendly}`;if(key===hud.key)return;
+  hud.key=key;hud.value=hp;const c=hud.canvas.getContext('2d');c.clearRect(0,0,256,64);
+  c.fillStyle='#142b2deb';c.beginPath();c.roundRect(1,5,254,54,10);c.fill();
+  c.strokeStyle=shield?'#ffe69d':'#eef5e178';c.lineWidth=2;c.stroke();
+  c.fillStyle='#546566';c.fillRect(10,21,173,23);
+  c.fillStyle=hp<=30?'#ffbd68':friendly?'#85e4aa':'#ff8278';c.fillRect(10,21,173*hp/100,23);
+  c.fillStyle='#112a2d66';for(let i=1;i<4;i++)c.fillRect(10+173*i/4,21,2,23);
+  c.fillStyle='#ffffff';c.font='bold 33px system-ui, sans-serif';c.textAlign='right';c.textBaseline='middle';c.fillText(String(hp),246,33);
+  hud.texture.needsUpdate=true;
+}
 // Merge static meshes by material: keeps mobile draw calls low without external assets.
 function mergeStatic(root, excluded=new Set()){
   root.updateMatrixWorld(true);const groups=new Map(),remove=[],sharedMaterials=new Set(mats.values());
@@ -29,7 +48,7 @@ export function gunModel(weapon='blaster'){
   mergeStatic(group);return group;
 }
 function disposeGroup(group){
-  const shared=new Set(mats.values());group.traverse(o=>{if(o.geometry&&!Object.values(geometries).includes(o.geometry))o.geometry.dispose();if(o.material&&!shared.has(o.material)){o.material.map?.dispose();o.material.dispose();}});group.clear();
+  const shared=new Set(mats.values());group.traverse(o=>{if(o.geometry&&!o.isSprite&&!Object.values(geometries).includes(o.geometry))o.geometry.dispose();if(o.material&&!shared.has(o.material)){o.material.map?.dispose();o.material.dispose();}});group.clear();
 }
 function robot(team,hard=false){
   const g=new THREE.Group(),c=colors[team],cream=0xfff0cb;
@@ -51,7 +70,7 @@ function robot(team,hard=false){
 }
 export class ArenaRenderer {
   constructor(preview,container){
-    this.preview=preview;this.container=container;this.mode='preview';this.quality='balanced';this.models=new Map();this.effects=[];this.time=0;this.recoil=0;this.map=getMap();this.lastPlayer=null;this.webglLost=false;
+    this.preview=preview;this.container=container;this.mode='preview';this.quality='balanced';this.models=new Map();this.effects=[];this.time=0;this.recoil=0;this.map=getMap();this.lastPlayer=null;this.webglLost=false;this.crosshair=document.querySelector('#crosshair');
     this.renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFSoftShadowMap;this.renderer.outputColorSpace=THREE.SRGBColorSpace;this.renderer.setClearColor(0xdfe9db);
     preview.replaceChildren(this.renderer.domElement);this.renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();this.webglLost=true;window.dispatchEvent(new CustomEvent('game-render-error'));});
     this.scene=new THREE.Scene();this.scene.background=new THREE.Color(0xdfe9db);this.scene.fog=new THREE.Fog(0xdfe9db,100,190);this.scene.add(new THREE.HemisphereLight(0xffffe7,0x8aa686,1.8));
@@ -138,7 +157,7 @@ export class ArenaRenderer {
       if(model&&model.userData.team!==a.team){this.scene.remove(model);disposeGroup(model);this.models.delete(a.id);model=null;}
       if(!model){
         model=robot(a.team,a.difficulty==='hard');this.models.set(a.id,model);this.scene.add(model);model.position.set(a.x,a.y,a.z);
-        const marker=new THREE.Sprite(new THREE.SpriteMaterial({map:label(a.bot?(a.difficulty==='hard'?'困难':'简单'):a.name,a.team==='blue'?'#40749d':'#b4564c').map,depthTest:true,transparent:true}));marker.position.y=2.2;marker.scale.set(.72,.27,1);model.add(marker);model.userData.marker=marker;
+        const marker=new THREE.Sprite(new THREE.SpriteMaterial({map:label(a.bot?(a.difficulty==='hard'?'困难':'简单'):a.name,a.team==='blue'?'#40749d':'#b4564c').map,depthTest:true,depthWrite:false,sizeAttenuation:false,transparent:true}));marker.position.y=2.58;marker.scale.set(.72,.27,1);model.add(marker);model.userData.marker=marker;const health=createHealthHud();model.add(health.sprite);model.userData.health=health;
       }
       if(model.userData.weapon!==a.weapon){const gun=model.userData.gun;disposeGroup(gun);gun.add(gunModel(a.weapon));model.userData.weapon=a.weapon;}
       const gap=Math.hypot(model.position.x-a.x,model.position.z-a.z),walk=gap>.02;
@@ -151,10 +170,26 @@ export class ArenaRenderer {
     for(const [id,model] of this.models){if(!active.has(id)){this.scene.remove(model);disposeGroup(model);this.models.delete(id);}}
     if(me){
       const yaw=controls.viewYaw,pitch=controls.viewPitch,aim=controls.aim&&!controls.freeLook;
-      const pose=cameraPose(me,yaw,pitch,aim,this.map.id);
+      const pose=cameraPose({...me,viewAspect:this.camera.aspect},yaw,pitch,aim,this.map.id);
       // Orbit reacts immediately; a collision-constrained camera never eases through cover.
       this.camera.position.set(pose.x,pose.y,pose.z);this.camera.rotation.set(pitch,yaw,0,'YXZ');this.lastPlayer=playerId;
-      const fov=aim?(me.weapon==='sniper'?38:52):68;this.camera.fov+=(fov-this.camera.fov)*Math.min(1,dt*14);this.camera.updateProjectionMatrix();
+      const fov=aim?(me.weapon==='sniper'?38:52):70;this.camera.fov+=(fov-this.camera.fov)*Math.min(1,dt*14);this.camera.updateProjectionMatrix();
+    }
+    if(me){
+      const pixelUnit=2*Math.tan(THREE.MathUtils.degToRad(this.camera.fov/2))/Math.max(1,this.container.clientHeight);
+      for(const a of state.actors){
+        const model=this.models.get(a.id),health=model?.userData.health;if(!health)continue;
+        const own=a.id===playerId;paintHealth(health,a,a.team===me.team);
+        const dx=model.position.x-this.camera.position.x,dy=model.position.y+1.55-this.camera.position.y,dz=model.position.z-this.camera.position.z,d=Math.hypot(dx,dy,dz);
+        const clear=own||d<.001||wallDistance(this.camera.position,{x:dx/d,y:dy/d,z:dz/d},d,this.map.id)>=d-.12;
+        health.sprite.visible=a.hp>0&&clear&&(own||d<55);health.sprite.material.depthTest=!own;
+        health.sprite.scale.set((own?68:72)*pixelUnit,20*pixelUnit,1);health.sprite.position.y=Math.max(2.12,1.95+16*pixelUnit*d);
+        model.userData.marker.scale.set(62*pixelUnit,14*pixelUnit,1);model.userData.marker.position.y=health.sprite.position.y+18*pixelUnit*d;
+        model.userData.marker.visible=!own&&health.sprite.visible;
+      }
+      const input=controls.input(),moving=Math.hypot(input.moveX||0,input.moveZ||0)>.1;
+      const gap=(controls.aim?3:me.weapon==='shotgun'?8:5)+(moving?2:0)+this.recoil*4;
+      this.crosshair?.style.setProperty('--crosshair-gap',`${gap.toFixed(1)}px`);
     }
     return me;
   }

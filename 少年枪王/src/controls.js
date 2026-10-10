@@ -6,6 +6,7 @@ export class Controls {
     this.bind();this.setTouchMode('auto');
   }
   setTouchMode(mode){this.touch=mode==='on'||mode==='auto'&&(matchMedia('(pointer:coarse)').matches||navigator.maxTouchPoints>0);document.body.classList.toggle('touch',this.touch);}
+  get viewAspect(){return clamp(innerWidth/Math.max(1,innerHeight),.4,3);}
   get viewYaw(){return this.freeLook?this.orbitYaw:this.yaw;}
   get viewPitch(){return this.freeLook?this.orbitPitch:this.pitch;}
   setFreeLook(active){
@@ -54,5 +55,5 @@ export class Controls {
     document.addEventListener('visibilitychange',()=>{if(document.hidden){this.reset();if(this.active)this.onPause();}});
   }
   updateStick(e){const rect=this.stick.getBoundingClientRect(),radius=rect.width*.35;let x=e.clientX-(rect.left+rect.width/2),y=e.clientY-(rect.top+rect.height/2),len=Math.hypot(x,y);if(len>radius){x=x/len*radius;y=y/len*radius;}this.moveX=x/radius;this.moveZ=y/radius;this.knob.style.transform=`translate(${x}px,${y}px)`;}
-  input(weapon){if(!this.active)return {yaw:this.yaw,pitch:this.pitch,weapon};const down=k=>this.keys.has(k)?1:0;return {moveX:clamp(this.moveX+down('KeyD')-down('KeyA')+down('ArrowRight')-down('ArrowLeft'),-1,1),moveZ:clamp(this.moveZ+down('KeyS')-down('KeyW')+down('ArrowDown')-down('ArrowUp'),-1,1),yaw:this.yaw,pitch:this.pitch,fire:this.fire,jump:this.jump||this.keys.has('Space'),aim:this.aim,sprint:this.keys.has('ShiftLeft'),weapon};}
+  input(weapon){if(!this.active)return {yaw:this.yaw,pitch:this.pitch,weapon,viewAspect:this.viewAspect};const down=k=>this.keys.has(k)?1:0;return {moveX:clamp(this.moveX+down('KeyD')-down('KeyA')+down('ArrowRight')-down('ArrowLeft'),-1,1),moveZ:clamp(this.moveZ+down('KeyS')-down('KeyW')+down('ArrowDown')-down('ArrowUp'),-1,1),yaw:this.yaw,pitch:this.pitch,fire:this.fire,jump:this.jump||this.keys.has('Space'),aim:this.aim,sprint:this.keys.has('ShiftLeft'),weapon,viewAspect:this.viewAspect};}
 }

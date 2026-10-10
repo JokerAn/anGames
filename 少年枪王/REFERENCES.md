@@ -30,3 +30,10 @@
 - Red Blob Games，Flow Field Pathfinding for Tower Defense：https://www.redblobgames.com/pathfinding/tower-defense/
 
 参考其多起点、同终点共享距离表的说明。本项目独立实现了按地图隔离的反向 BFS、受限 LRU 缓存、连续坐标连接、身体半径扫掠和独立 BFS 回归验证。
+
+## 准星视觉参考（2026-10-11）
+
+- CrossFire 官方入门页面：https://crossfire.z8games.com/guides_start.html
+- CrossFire 官方社区关于十字、中心点与颜色的讨论：https://forum.z8games.com/discussion/comment/6258686/
+
+本次仅参考经典绿色细线十字的视觉思路，准星由本项目 CSS 独立绘制，未使用 CF 图片或其他游戏资源。

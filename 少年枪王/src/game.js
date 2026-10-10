@@ -144,7 +144,7 @@ function updateHud(){if(!state)return;$('#blue-score').textContent=state.score.b
   renderer?.minimap($('#minimap'),state,playerId);
 }
 function assist(dt){if(!settings.assist||!controls.touch||!state||!controls.active||controls.freeLook)return;const me=state.actors.find(a=>a.id===playerId);if(!me||me.hp<=0)return;let best=null,score=.14;
-  for(const a of state.actors){if(a.team===me.team||a.hp<=0||a.shield>0)continue;const angles=aimAngles(me,{x:a.x,y:a.y+1.1,z:a.z},controls.aim),yaw=angles.yaw,diff=Math.atan2(Math.sin(yaw-controls.yaw),Math.cos(yaw-controls.yaw)),distance=Math.hypot(a.x-me.x,a.z-me.z);if(distance>35)continue;const pitch=angles.pitch;if(Math.abs(diff)<score&&Math.abs(pitch-controls.pitch)<.14&&visible(me,a,state.config.map)){best={diff,pitch};score=Math.abs(diff);}}
+  for(const a of state.actors){if(a.team===me.team||a.hp<=0||a.shield>0)continue;const angles=aimAngles({...me,viewAspect:controls.viewAspect},{x:a.x,y:a.y+1.1,z:a.z},controls.aim),yaw=angles.yaw,diff=Math.atan2(Math.sin(yaw-controls.yaw),Math.cos(yaw-controls.yaw)),distance=Math.hypot(a.x-me.x,a.z-me.z);if(distance>35)continue;const pitch=angles.pitch;if(Math.abs(diff)<score&&Math.abs(pitch-controls.pitch)<.14&&visible(me,a,state.config.map)){best={diff,pitch};score=Math.abs(diff);}}
   if(best){controls.yaw+=best.diff*Math.min(1,dt*3);controls.pitch+=(best.pitch-controls.pitch)*Math.min(1,dt*2);}
 }
 function bindUI(){
