@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#dceee6">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="风屿奇旅：为手机打造的原创横版平台冒险。奔跑、跳跃，收集散落在风中的星光。">
+  <title>风屿奇旅 · Windy Trails</title>
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="game-shell" aria-label="风屿奇旅平台跳跃游戏">
+    <canvas id="scene" aria-label="游戏画面：使用屏幕方向键移动，跳跃踩怪，收集金币抵达终点"></canvas>
+    <div class="vignette" aria-hidden="true"></div>
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="风屿奇旅首页"><img src="assets/icon.svg" alt="" width="38" height="38"><span>风屿奇旅<small>WINDY TRAILS</small></span></a>
+      <div class="level-pill"><span class="live-dot"></span><span id="level-label">01/08 <i>/</i> 微风原野</span><span class="difficulty-badge" id="difficulty-badge">简单</span></div>
+      <div class="utility">
+        <button class="icon-button" id="sound-button" aria-label="关闭声音" title="声音"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4V5Zm4 3c3 2 3 6 0 8m3-11c5 4 5 10 0 14"/></svg></button>
+        <button class="icon-button" id="fullscreen-button" aria-label="进入全屏" title="全屏"><svg viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button>
+        <button class="icon-button" id="pause-button" aria-label="暂停游戏" title="暂停" disabled><svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg></button>
+      </div>
+    </header>
+    <section class="hud" id="hud" aria-label="游戏状态" hidden>
+      <div class="hearts" id="hearts" aria-label="3点生命">♥ ♥ ♥</div><span class="hud-divider"></span>
+      <div class="coin-stat"><span class="coin-icon">✦</span><b id="coin-count">00</b></div>
+      <div class="star-stat" id="star-count" aria-label="0颗星光">☆ ☆ ☆</div>
+      <div class="ammo-stat" id="ammo-stat" aria-label="剩余 0 发子弹"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 16V6c0-4 5-4 5 0v10H4Zm8 0V9c0-4 5-4 5 0v7h-5ZM4 13h5m3 0h5"/></svg><b id="ammo-count">00</b></div>
+      <div class="timer"><svg viewBox="0 0 20 20"><circle cx="10" cy="11" r="7"/><path d="M10 7v4l3 2M7 1h6"/></svg><b id="time-count">180</b></div>
+    </section>
+    <section class="welcome" id="welcome">
+      <div class="eyebrow"><span></span> 一场随时出发的小冒险</div>
+      <h1>让好奇心，<br>乘风<span>去冒险。</span></h1>
+      <p>越过山丘，追逐星光。<br>和小狐狸阿屿一起，发现世界的另一面。</p>
+      <div class="mode-picker" role="group" aria-label="游戏难度">
+        <button class="mode-choice selected" data-difficulty="easy" aria-pressed="true"><span>❧ 简单模式</span><small>3 颗心 · 轻松探索</small></button>
+        <button class="mode-choice" data-difficulty="hard" aria-pressed="false"><span>⚡ 困难模式</span><small>2 颗心 · 进阶挑战</small></button>
+      </div>
+      <div class="start-row"><button class="primary-button" id="start-button">出发，去冒险 <span>↗</span></button><button class="help-button" id="help-button" aria-label="查看玩法">?</button></div>
+      <div class="start-meta"><span class="mini-dpad">✚</span> 触控 / 键盘 <span class="meta-dot">·</span><button class="map-button" id="map-button">探索 8 座岛屿 ↗</button></div>
+    </section>
+    <div class="scene-caption" id="scene-caption"><span class="caption-line"></span><div>第一站 · 微风原野<small>THE ADVENTURE STARTS HERE</small></div></div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="controls" id="controls" aria-label="触屏手柄">
+      <div class="direction-pad" role="group" aria-label="方向控制">
+        <div class="pad-ring"></div><div class="pad-center"></div>
+        <button class="direction up" data-action="up" aria-label="向上跳跃"><svg viewBox="0 0 24 24"><path d="m6 15 6-7 6 7"/></svg></button>
+        <button class="direction left" data-action="left" aria-label="向左移动"><svg viewBox="0 0 24 24"><path d="m15 6-7 6 7 6"/></svg></button>
+        <button class="direction right" data-action="right" aria-label="向右移动"><svg viewBox="0 0 24 24"><path d="m9 6 7 6-7 6"/></svg></button>
+        <button class="direction down" data-action="down" aria-label="下蹲或空中下落"><svg viewBox="0 0 24 24"><path d="m6 9 6 7 6-7"/></svg></button>
+      </div>
+      <div class="control-hint"><span>跟着风，也跟着自己的节奏</span><small>← → 移动 <i>·</i> SPACE 跳跃 <i>·</i> SHIFT 冲刺 <i>·</i> J 射击</small></div>
+      <div class="action-pad"><button class="action shoot empty" data-action="shoot" aria-label="射击，先拾取弹药，长按连发"><svg viewBox="0 0 24 24"><path d="M9 19V8a3 3 0 0 1 6 0v11H9Zm0-4h6M4 9H2m20 0h-2M5 4l-2-2m16 2 2-2"/></svg><span>射击</span><small>J / F</small><b class="shoot-ammo" id="shoot-ammo">0</b></button><button class="action dash" data-action="dash" aria-label="冲刺"><svg viewBox="0 0 24 24"><path d="m13 3-8 11h6l-1 7L20 9h-7l0-6Z"/></svg><span>冲刺</span><small>SHIFT</small></button><button class="action jump" data-action="jump" aria-label="跳跃，长按跳得更高"><svg viewBox="0 0 28 28"><path d="M14 23V5M7 12l7-7 7 7M6 23h16"/></svg><span>跳跃</span><small>SPACE</small></button></div>
+    </div>
+    <footer class="bottom-note" id="bottom-note"><span>为每一颗爱冒险的心而造</span><span>戴上耳机，让风带路 <svg viewBox="0 0 18 18"><path d="M3 10V8a6 6 0 0 1 12 0v2M3 9H2v6h3V9H3Zm12 0h1v6h-3V9h2Z"/></svg></span></footer>
+    <div class="modal-backdrop" id="modal" hidden><section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-mark" id="modal-mark">✦</div><div class="eyebrow" id="modal-eyebrow">TAKE A LITTLE BREAK</div><h2 id="modal-title">风会等你</h2><div id="modal-content"></div><div class="modal-actions" id="modal-actions"></div></section></div>
+  </main>
+  <script type="module" src="game.js"></script>
+</body>
+</html>
