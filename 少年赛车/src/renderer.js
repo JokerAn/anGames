@@ -1,5 +1,5 @@
 import * as THREE from '/vendor/three.module.js';
-import {CARS,getTrack,ROAD_HALF,PICKUP_BOX,BOOST_PAD,mod,clamp} from './tracks.js';
+import {CARS,getTrack,ROAD_HALF,PICKUP_BOX,BOOST_PAD,steeringLimit,mod,clamp} from './tracks.js';
 import {AdaptiveQuality,renderRatio} from './quality.js';
 const materials=new Map(),sharedGeometries=new Set();
 const boxGeo=new THREE.BoxGeometry(1,1,1);sharedGeometries.add(boxGeo);
@@ -318,11 +318,11 @@ export class RaceRenderer {
       car.visible=Math.hypot(p.x-carPos.x,p.z-carPos.z)<220;
       if(!car.visible)continue;
       this.target.set(p.x,p.y+.025,p.z);if(!this.cameraReady)car.position.copy(this.target);else car.position.lerp(this.target,1-Math.exp(-dt*22));
-      const yaw=p.yaw+Math.atan2(r.vx,Math.max(8,r.v))*(r.drifting?1.8:.7),delta=mod(yaw-car.rotation.y+Math.PI,Math.PI*2)-Math.PI;
+      const yaw=p.yaw+(r.headingError??Math.atan2(r.vx,Math.max(8,r.v)))*(r.drifting?1.08:1),delta=mod(yaw-car.rotation.y+Math.PI,Math.PI*2)-Math.PI;
       if(!this.cameraReady)car.rotation.y=p.yaw;else car.rotation.y+=delta*(1-Math.exp(-dt*12));
       car.rotation.order='YXZ';const pitch=-Math.atan(t.slope(r.s))+clamp(r.acceleration||0,-36,30)*.0007,roll=clamp(r.vx*.004,-.055,.055);
       car.rotation.x+=(pitch-car.rotation.x)*(1-Math.exp(-dt*8));car.rotation.z+=(-roll-car.rotation.z)*(1-Math.exp(-dt*7));
-      for(const w of car.userData.wheels){if(w.front)w.pivot.rotation.y=(r.steerAngle||0)*.24;w.roll.rotation.x+=r.v*dt/.43;}
+      for(const w of car.userData.wheels){if(w.front)w.pivot.rotation.y=(r.steerAngle||0)*steeringLimit(r.v);w.roll.rotation.x+=r.v*dt/.43;}
       car.userData.flame.visible=!!r.boosting&&r.engine!=='electric';car.userData.shield.visible=r.shield>0;
       if(r.drifting&&!reduced&&Math.random()<dt*24)this.particle(car.position);
     }

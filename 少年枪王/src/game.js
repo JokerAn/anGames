@@ -45,7 +45,7 @@ function renderLobby(){
   const guest=room&&room.host!==playerId;
   if(ended&&room){$('#play-again').disabled=guest;$('#play-again').textContent=guest?'等待房主开启下一局':'再来一局 ↗';}
   for(const sel of ['#configure-team','#configure-enemy','#duration','#target','#rules'])$(sel).disabled=!!guest;
-  const start=$('#start-game');start.disabled=mode==='lan'&&(!room||guest);start.firstElementChild.textContent=mode==='solo'?'部署作战':!room?'先加入好友房间':guest?'等待房主开始':'全员出发';
+  const start=$('#start-game');start.disabled=!renderer||renderer.webglLost||mode==='lan'&&(!room||guest);start.firstElementChild.textContent=!renderer?'正在准备画面…':mode==='solo'?'部署作战':!room?'先加入好友房间':guest?'等待房主开始':'全员出发';
   $('#start-note').innerHTML=mode==='lan'?room?'双方选好队伍后，房主就能开始':'先连接同一 Wi-Fi，再输入同一个密码':'WASD 移动 · E 闪避 · R 换弹 · V 切换视角';
   if(room){$('#room-members').innerHTML=room.members.map(m=>`<div class="member-row ${m.team}"><i></i><span>${escape(m.name)}</span><span>${m.team==='blue'?'蓝队':'红队'} · ${m.id===room.host?'房主':'伙伴'}</span></div>`).join('')+(room.members.length===1?'<div class="member-row">等待队员加入…</div>':'');}
   $('#join-room').hidden=!!room;$('#leave-room').hidden=!room;$('#room-password').disabled=!!room;
@@ -93,7 +93,11 @@ async function joinRoom(){
 }
 function disconnect(){connectionEpoch++;if(socket){if(socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:'leave'}));socket.close();}socket=null;room=null;$('#room-members').textContent='';$('#join-room').disabled=false;$('#join-room').textContent='创建 / 加入房间 →';renderLobby();}
 async function startGame(){
-  await audio.unlock();if(!renderer){toast('3D 画面尚未准备好，请使用支持 WebGL 的浏览器');return;}
+  if(playing)return;
+  if(!renderer||renderer.webglLost){toast('3D 画面尚未准备好，请使用支持 WebGL 的浏览器');return;}
+  // Audio permission can remain pending indefinitely on a phone. Start the
+  // match in the click handler and allow sound to join when it becomes available.
+  void audio.unlock();
   try{localStorage.setItem('junior-name',$('#player-name').value);}catch{}
   config.duration=Number($('#duration').value);config.target=Number($('#target').value);config.rules=$('#rules').value;
   if(mode==='lan'){send({type:'config',config});send({type:'start'});return;}
@@ -192,7 +196,7 @@ function bindUI(){
 }
 async function init(){
   renderWeapons();renderLobby();bindUI();applySettings();
-  try{renderer=new ArenaRenderer($('#preview'),$('#game-canvas'));renderer.setQuality(settings.quality);renderMaps();}catch(e){console.error(e);$('#preview').innerHTML='<span class="loading">无法启动 3D，请开启浏览器硬件加速后刷新。</span>';$('#start-game').disabled=true;toast('浏览器不支持 WebGL，建议使用 Safari 或 Chrome');}
+  try{renderer=new ArenaRenderer($('#preview'),$('#game-canvas'));renderer.setQuality(settings.quality);renderLobby();}catch(e){console.error(e);$('#preview').innerHTML='<span class="loading">无法启动 3D，请开启浏览器硬件加速后刷新。</span>';$('#start-game').disabled=true;toast('浏览器不支持 WebGL，建议使用 Safari 或 Chrome');}
   try{const response=await fetch('/api/network');const data=await response.json();networkAddresses=data.addresses||[];const addresses=networkAddresses.length?networkAddresses:[location.origin];$('#network-address').innerHTML=`手机连接同一 Wi-Fi 后打开：<br>${addresses.map(a=>`<code>${escape(a)}</code>`).join('<br>')}`;}catch{$('#network-address').textContent='请通过 npm start 启动，再用电脑的局域网地址访问。';}
   let previous=performance.now();
   function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-previous)/1000,.06);previous=now;if(document.hidden)return;

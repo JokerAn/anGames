@@ -1,6 +1,6 @@
 export class Controls {
   constructor(){
-    this.keys=new Set();this.pointers=new Map();this.enabled=false;this.autoThrottle=true;this.itemPress=0;this.stickAxis=0;this.stickId=null;
+    this.keys=new Set();this.pointers=new Map();this.enabled=false;this.autoThrottle=false;this.itemPress=0;this.stickAxis=0;this.stickId=null;
     this.bindings={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',ArrowUp:'throttle',KeyW:'throttle',ArrowDown:'brake',KeyS:'brake',Space:'drift',ShiftLeft:'nitro',ShiftRight:'nitro',KeyE:'item'};
     window.addEventListener('keydown',e=>{if(!this.enabled||!this.bindings[e.code])return;e.preventDefault();if(this.bindings[e.code]==='item'&&!this.keys.has(e.code))this.itemPress++;this.keys.add(e.code);});
     window.addEventListener('keyup',e=>this.keys.delete(e.code));

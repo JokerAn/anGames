@@ -14,6 +14,8 @@ export const TRACKS = [
   {id: 'neon', name: '都市夜环', tag: 'NIGHT EXPRESS', desc: '城市灯火与 320 米连续加速直线', difficulty: '挑战', color: '#8899b3', sky: '#101824', ground: '#293034', road: '#252b30', radius: [165, 145], wave: 27, hills: 4, theme: 'cyber'},
 ];
 export const ROAD_HALF = 9;
+// Gradually reduce steering lock at speed; full digital input remains controllable.
+export const steeringLimit = speed => .52/(1+.03*speed+.0006*speed*speed);
 // The rendered crate and pickup sweep share dimensions; extra reach includes the car body.
 export const PICKUP_BOX = {size: 1.5, halfWidth: 2.25, halfLength: 3.2, respawnSeconds: 3};
 // Shared by the rendered pad and swept vehicle contact, including mirrors/bumper.

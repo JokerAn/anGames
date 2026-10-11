@@ -1,5 +1,6 @@
 const assert=require('node:assert/strict');
 const path=require('node:path');
+const {createDriver}=require('./browser-driver.cjs');
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const BASE=process.env.RACER_URL||'http://localhost:3210';
 (async()=>{
@@ -12,20 +13,18 @@ const BASE=process.env.RACER_URL||'http://localhost:3210';
       await page.locator(`[data-track="${track}"]`).tap();await page.locator('#rules').selectOption(rules);
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
       await page.screenshot({path:path.join(__dirname,'artifacts',`straight-${track}-garage.png`),scale:'css',fullPage:true});
-      await page.locator('#start').tap();
+      await page.locator('#auto-throttle').check();await page.locator('#start').tap();
       const layout=await page.evaluate(async()=>{const {getTrack}=await import('/src/tracks.js'),t=getTrack(__racerDebug.track);return {straight:t.boostStraight,pads:t.objects.filter(o=>o.section==='boost-straight'),length:t.length};});
-      let steering='',shot=false,entered=false;const collected=new Set(),deadline=Date.now()+22000;
+      const driver=await createDriver(page);let shot=false,entered=false,lastState;const collected=new Set(),deadline=Date.now()+30000;
       while(Date.now()<deadline){
-        const state=await page.evaluate(()=>{const d=__racerDebug;return {me:d.racers.find(r=>r.id===d.playerId),time:d.time,render:d.render};});
-        const target=0,delta=target-state.me.x,next=Math.abs(delta)>.28?(delta>0?'ArrowLeft':'ArrowRight'):'';
-        if(steering!==next){if(steering)await page.keyboard.up(steering);if(next)await page.keyboard.down(next);steering=next;}
+        const state=lastState=await driver.step(0);
         if(state.me.s>=layout.straight.s+15&&!shot){await page.screenshot({path:path.join(__dirname,'artifacts',`straight-${track}-mobile.png`),scale:'css'});shot=true;}
         for(const id of state.me.boostContacts||[])if(layout.pads.some(p=>p.id===id)){collected.add(id);entered=true;}
         if(entered&&state.me.s<layout.pads.at(-1).s-7)assert.ok(state.me.boost>0,'三个连续加速带之间不得中断加速');
         if(collected.size===3){report.push({track,rules,straightLength:layout.straight.length,pads:[...collected],speedKmh:Math.round(state.me.v*3.6),quality:state.render.quality,calls:state.render.calls});break;}
         await page.waitForTimeout(40);
       }
-      if(steering)await page.keyboard.up(steering);assert.equal(collected.size,3,`${track} 实际 UI 驾驶必须接触所有三个加速带`);assert.equal(shot,true);await context.close();
+      await driver.release();assert.equal(collected.size,3,`${track} 实际 UI 驾驶必须接触所有三个加速带: ${JSON.stringify(lastState?.me)}`);assert.equal(shot,true);await context.close();
     }
     // Inspect rendered objects in both modes using the same live scene builder.
     const context=await browser.newContext(),page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(['error','warning'].includes(m.type()))errors.push(m.text());});await page.goto(BASE);

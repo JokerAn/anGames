@@ -1,9 +1,9 @@
-import {CARS, ENGINES, TRACKS, ROAD_HALF, PICKUP_BOX, BOOST_PAD, CAR_CONTACT, getTrack, clamp, mod, shortDistance} from './tracks.js';
+import {CARS, ENGINES, TRACKS, ROAD_HALF, PICKUP_BOX, BOOST_PAD, CAR_CONTACT, steeringLimit, getTrack, clamp, mod, shortDistance} from './tracks.js';
 const BOT_NAMES = ['林越', '陈驰', '周远', '沈锋', '陆衡', '江川'];
 export const ITEMS = {nitro: {name: '超级氮气', icon: '↟'}, oil: {name: '减速油污', icon: '◉'}, pulse: {name: '减速脉冲', icon: 'ϟ'}, shield: {name: '防撞护盾', icon: '⬡'}};
 export function cleanInput(input = {}) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) input = {throttle:false,brake:true};
-  return {steer: Number.isFinite(input.steer) ? clamp(input.steer, -1, 1) : 0, throttle: input.throttle !== false && !input.brake, brake: !!input.brake, drift: !!input.drift, nitro: !!input.nitro, item: !!input.item, itemPress: Number.isSafeInteger(input.itemPress) && input.itemPress >= 0 ? input.itemPress : 0};
+  return {steer: Number.isFinite(input.steer) ? clamp(input.steer, -1, 1) : 0, throttle: input.throttle === true && !input.brake, brake: !!input.brake, drift: !!input.drift, nitro: !!input.nitro, item: !!input.item, itemPress: Number.isSafeInteger(input.itemPress) && input.itemPress >= 0 ? input.itemPress : 0};
 }
 export function cleanChoice(choice = {}) {
   if (!choice || typeof choice !== 'object' || Array.isArray(choice)) choice = {};
@@ -15,7 +15,7 @@ export function createRace(options = {}) {
   const humans = (options.players || [{id: 'local'}]).slice(0, 2);
   const racers = Array.from({length: 6}, (_, i) => {
     const player = humans[i], choice = cleanChoice(player || {name: BOT_NAMES[i], car: CARS[i%3].id, engine: ENGINES[i%3].id});
-    return {...choice, id: player?.id || `bot-${i}`, bot: !player, slot: i, s: -12 - Math.floor(i/2)*7, x: i%2 ? 2.5 : -2.5, v: 0, vx: 0, steerAngle:0, acceleration:0, rpm:900, gear:1, gripUsage:0, braking:false, nitro: 55, boost: 0, slow: 0, shield: 0, hit: 0, impactCooldown: 0, driftCharge: 0, drifting: false, item: null, itemHeld: false, lastItemPress: 0, itemSeq: 0, finishTime: null, lap: 1, rank: i+1, input: cleanInput(), boostContacts: {}, cooldowns: {}, pickupCooldowns: {}, lapStart: 0, bestLap: null};
+    return {...choice, id: player?.id || `bot-${i}`, bot: !player, slot: i, s: -12 - Math.floor(i/2)*7, x: i%2 ? 2.5 : -2.5, v: 0, vx: 0, headingError:0, steerAngle:0, acceleration:0, rpm:900, gear:1, gripUsage:0, braking:false, nitro: 55, boost: 0, slow: 0, shield: 0, hit: 0, impactCooldown: 0, driftCharge: 0, drifting: false, item: null, itemHeld: false, lastItemPress: 0, itemSeq: 0, finishTime: null, lap: 1, rank: i+1, input: cleanInput(), boostContacts: {}, cooldowns: {}, pickupCooldowns: {}, lapStart: 0, bestLap: null};
   });
   return {trackId, rules:options.rules==='arcade'?'arcade':'circuit', laps: options.laps === 2 ? 2 : 3, difficulty: options.difficulty === 'easy' ? 'easy' : 'normal', time: -3.5, status: 'countdown', racers, traps: [], events: [], eventSeq: 0, finishOrder: [], elapsedAfterWinner: 0};
 }
@@ -49,8 +49,11 @@ function aiInput(race, racer, track) {
   const car=CARS.find(c=>c.id===racer.car);
   const cornerSpeed=Math.sqrt((easy?12:23)*car.grip/Math.max(.002,Math.abs(preview)));
   const brake=racer.v>cornerSpeed+3;
-  const compensation=curvature*racer.v*racer.v*.018/(4+racer.v*.105);
-  return {steer:clamp((target-racer.x)*.3+compensation,-1,1),throttle:!brake,brake,
+  const desiredHeading=Math.atan2(target-racer.x,14);
+  const desiredYawRate=curvature*racer.v+(desiredHeading-(racer.headingError||0))*4;
+  const wheelAngle=Math.atan(2.8*desiredYawRate/Math.max(5,racer.v));
+  const maxSteer=steeringLimit(racer.v);
+  return {steer:clamp(wheelAngle/(maxSteer*car.grip),-1,1),throttle:!brake,brake,
     drift:race.rules==='arcade'&&Math.abs(curvature)>.013&&racer.v>36,
     nitro:!brake&&Math.abs(preview)<.004&&racer.nitro>40,
     item:!!racer.item&&Math.sin(race.time*2+racer.slot)>.8};
@@ -113,14 +116,21 @@ export function stepRace(race, dt) {
     let acceleration=input.brake?-36*car.grip:(input.throttle||r.boost>0)?26*car.accel*engine.accel*(1-.52*clamp(r.v/maxSpeed,0,1))*(boosted?1.4:1):-2.4;
     acceleration-=.0012*r.v*r.v+clamp(grade,-.45,.45)*9.81;
     if(r.drifting)acceleration-=5;
+    // No spontaneous launch from slope gravity with an untouched accelerator.
+    if(!input.throttle&&!boosted&&r.v<.05)acceleration=Math.min(0,acceleration);
     if(race.rules==='circuit')acceleration-=Math.min(40,Math.max(0,gripLoad-1)*9);
     const before=r.v;
     r.v=clamp(r.v+acceleration*dt,0,maxSpeed+Math.max(0,r.v-maxSpeed)*Math.exp(-dt*3));
     r.acceleration=(r.v-before)/Math.max(dt,.001);r.braking=!!input.brake;
     r.steerAngle+=(input.steer-r.steerAngle)*(1-Math.exp(-dt*8));
     const grip=race.rules==='circuit'?1/(1+Math.max(0,r.gripUsage-1)*.45):1;
-    const desiredVX=r.steerAngle*(4+r.v*.105)*car.grip*grip*(r.drifting?1.38:1)-curvature*r.v*r.v*.018;
-    r.vx+=(desiredVX-r.vx)*(1-Math.exp(-dt*(r.drifting?3:7)));
+    const maxSteer=steeringLimit(r.v),wheelAngle=r.steerAngle*maxSteer*car.grip;
+    const yawRate=r.v/2.8*Math.tan(wheelAngle)*grip*(r.drifting?1.18:1);
+    // A zero steering input preserves world heading. Track-relative heading
+    // changes as the road bends, instead of rotating the car along the centreline.
+    r.headingError=clamp((r.headingError||0)+(yawRate-curvature*r.v*Math.max(0,Math.cos(r.headingError||0)))*dt,-1.5,1.5);
+    const desiredVX=Math.sin(r.headingError)*r.v;
+    r.vx+=(desiredVX-r.vx)*(1-Math.exp(-dt*(r.drifting?3:12)));
     // Six-speed automatic gearbox; electric drive uses a single reduction gear.
     if(engine.id==='electric')r.gear=1;
     else {while(r.gear<6&&r.v>r.gear*11+.6)r.gear++;while(r.gear>1&&r.v<(r.gear-1)*11-2)r.gear--;}
@@ -129,11 +139,14 @@ export function stepRace(race, dt) {
     const oldX = r.x;
     r.x += r.vx*dt;
     if (Math.abs(r.x) > ROAD_HALF-1) {
-      r.x = clamp(r.x, -ROAD_HALF+1, ROAD_HALF-1); r.vx *= -.4;
+      r.x = clamp(r.x, -ROAD_HALF+1, ROAD_HALF-1); r.vx=0;
+      // Sliding into a rail loses speed continuously; the rail cannot steer
+      // an unattended car through the lap. The driver must turn out of contact.
+      r.v=Math.max(0,r.v-40*Math.abs(Math.sin(r.headingError))*dt);
       if (r.impactCooldown <= 0) hit(race, r, '擦碰护栏', .78);
     }
     const oldS = r.s;
-    r.s += r.v*dt;
+    r.s += r.v*Math.max(0,Math.cos(r.headingError))*dt;
     for (const o of race.rules==='arcade'?[...track.objects, ...race.traps]:track.objects) {
       if(race.rules!=='arcade'&&o.type!=='boost')continue;
       if (o.type === 'box') {
@@ -154,7 +167,7 @@ export function stepRace(race, dt) {
       if (o.type === 'boost') {
         // Project the rotated car onto the pad axes, so a drifting side or nose
         // counts as contact even when the car centre never crosses the arrows.
-        const yaw=Math.atan2(r.vx,Math.max(8,r.v))*(r.drifting?1.8:.7);
+        const yaw=(r.headingError||0)*(r.drifting?1.08:1);
         const cos=Math.abs(Math.cos(yaw)),sin=Math.abs(Math.sin(yaw));
         const halfWidth=BOOST_PAD.width/2+CAR_CONTACT.halfWidth*cos+CAR_CONTACT.halfLength*sin;
         const halfLength=BOOST_PAD.length/2+CAR_CONTACT.halfLength*cos+CAR_CONTACT.halfWidth*sin;

@@ -10,7 +10,7 @@ test('赛道闭合，采样和弯率有限，三条路线不同',()=>{
   assert.equal(new Set(lengths).size,3);
 });
 test('倒计时不能偷跑；单人和双人始终六车',()=>{
-  const r=createRace();const initial=r.racers[0].s;advance(r,2);assert.equal(r.racers[0].s,initial);advance(r,3);assert.ok(r.racers[0].s>initial);assert.equal(r.racers.filter(r=>r.bot).length,5);
+  const r=createRace();r.racers[0].input={throttle:true};const initial=r.racers[0].s;advance(r,2);assert.equal(r.racers[0].s,initial);advance(r,3);assert.ok(r.racers[0].s>initial);assert.equal(r.racers.filter(r=>r.bot).length,5);
   const two=createRace({players:[{id:'a'},{id:'b'}]});assert.equal(two.racers.length,6);assert.equal(two.racers.filter(r=>r.bot).length,4);
 });
 test('输入和车型容错，客户端不能传速度、位置篡改比赛',()=>{
@@ -34,7 +34,7 @@ test('油污与脉冲可释放；按住道具不会连发',()=>{
   const r=active(),[a,b]=r.racers;a.s=30;a.item='oil';a.input={item:true};stepRace(r,1/60);assert.equal(r.traps.length,1);const trapId=r.traps[0].id;a.item='pulse';stepRace(r,1/60);assert.equal(a.item,'pulse');a.input={};stepRace(r,1/60);b.s=a.s+20;b.shield=0;a.input={item:true};stepRace(r,1/60);assert.ok(b.slow>0);assert.equal(a.item,null);advance(r,20);assert.ok(!r.traps.some(t=>t.id===trapId));
 });
 test('冲线排名按顺序，未完成者在等待窗口后结算',()=>{
-  const r=active(),t=getTrack(r.trackId),[a,b]=r.racers;a.s=t.length*2-1;a.v=60;b.s=t.length*2-5;b.v=50;advance(r,.2);assert.equal(a.rank,1);assert.equal(b.rank,2);assert.ok(a.finishTime!==null);assert.ok(a.bestLap>0);r.racers.slice(2).forEach(p=>{p.bot=false;p.input={throttle:false};});advance(r,36);assert.equal(r.status,'finished');assert.ok(r.racers.some(p=>p.finishTime===null));
+  const r=active(),t=getTrack(r.trackId),[a,b]=r.racers;a.s=t.length*2-1;a.lap=2;a.v=60;b.s=t.length*2-5;b.lap=2;b.v=50;advance(r,.2);assert.equal(a.rank,1);assert.equal(b.rank,2);assert.ok(a.finishTime!==null);assert.ok(a.bestLap>0);r.racers.slice(2).forEach(p=>{p.bot=false;p.input={throttle:false};});advance(r,36);assert.equal(r.status,'finished');assert.ok(r.racers.some(p=>p.finishTime===null));
 });
 for(const track of TRACKS)test(`${track.name}：六个人机可完赛、无非有限状态`,()=>{
   const r=createRace({track:track.id,laps:2,players:[]});advance(r,160);assert.equal(r.status,'finished');assert.equal(r.finishOrder.length,6);for(const p of r.racers)assert.ok(Number.isFinite(p.s+p.x+p.v));

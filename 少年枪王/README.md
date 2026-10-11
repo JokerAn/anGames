@@ -76,11 +76,12 @@ AI 保留视线、反应时间、转向速度、寻路和受伤撤退。争夺�
 npm run check
 npm test
 npm run test:browser
+node test/browser-startup.cjs
 ```
 
 浏览器验证默认使用本机 Chrome；可通过 `BROWSER_CHANNEL` 指定其他已安装的 Chromium 通道。Playwright 为开发依赖，不参与运行时页面加载。
 
-`test/tactical.test.js` 覆盖新规则，`test/browser-tactical.cjs` 覆盖三张地图、真实命中、换弹、闪避、视角、暂停、手机多指输入及双客户端权威同步。报告和截图写入 `test/artifacts/`。`test/VALIDATION.md` 记录本次验证结果与范围。
+`test/browser-startup.cjs` 检查桌面与手机的开局和再次开局，覆盖音频正常、授权始终未响应、被拒绝、不可用及初始化失败。比赛启动不会等待音频授权完成。`test/tactical.test.js` 覆盖新规则，`test/browser-tactical.cjs` 覆盖三张地图、真实命中、换弹、闪避、视角、暂停、手机多指输入及双客户端权威同步。报告和截图写入 `test/artifacts/`。`test/VALIDATION.md` 记录本次验证结果与范围。
 
 ## 主要文件
 

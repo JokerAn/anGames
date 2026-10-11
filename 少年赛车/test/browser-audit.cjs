@@ -1,5 +1,6 @@
 // Optional browser regression suite. Requires Playwright and a running game server.
 const assert=require('node:assert/strict');
+const {createDriver}=require('./browser-driver.cjs');
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const BASE=process.env.RACER_URL||'http://localhost:3210';
 function installFakeSocket(){
@@ -51,15 +52,14 @@ function installFakeSocket(){
   console.log('PASS room acknowledgement timeout recovers the start button');await first.close();
 
   const {page:a,context:ca}=await pageIn(),{page:b,context:cb}=await pageIn();const code=String(Date.now()).slice(-8);
-  for(const [page,name] of [[a,'审查A'],[b,'审查B']]){await page.locator('#rules').selectOption('arcade');await page.locator('[data-mode="lan"]').tap();await page.locator('#nickname').fill(name);await page.locator('#room-code').fill(code);await page.locator('#start').tap();await page.locator('#room-dialog').waitFor({state:'visible'});}
+  for(const [page,name] of [[a,'审查A'],[b,'审查B']]){await page.locator('#auto-throttle').check();await page.locator('#rules').selectOption('arcade');await page.locator('[data-mode="lan"]').tap();await page.locator('#nickname').fill(name);await page.locator('#room-code').fill(code);await page.locator('#start').tap();await page.locator('#room-dialog').waitFor({state:'visible'});}
   await a.locator('#ready').tap();await b.locator('#ready').tap();await a.waitForFunction(()=>!document.getElementById('room-start').disabled);await a.locator('#room-start').tap();await a.waitForTimeout(3400);
-  let key='',acquired=false;
-  for(let i=0;i<100;i++){
-   const me=await a.evaluate(()=>__racerDebug.racers.find(r=>r.id===__racerDebug.playerId));const offset=-5-me.x,next=Math.abs(offset)>.2?(offset>0?'ArrowLeft':'ArrowRight'):'';
-   if(next!==key){if(key)await a.keyboard.up(key);if(next)await a.keyboard.down(next);key=next;}
-   if(await a.locator('[data-control="item"]').evaluate(el=>el.classList.contains('available'))){acquired=true;break;}await a.waitForTimeout(60);
+  const driver=await createDriver(a);let acquired=false;
+  for(let i=0;i<150;i++){
+   await driver.step(-5);
+   if(await a.locator('[data-control="item"]').evaluate(el=>el.classList.contains('available'))){acquired=true;break;}await a.waitForTimeout(40);
   }
-  if(key)await a.keyboard.up(key);assert.ok(acquired,'LAN player should collect a crate');
+  await driver.release();assert.ok(acquired,'LAN player should collect a crate through manual steering');
   await a.evaluate(()=>{window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyE',bubbles:true}));window.dispatchEvent(new KeyboardEvent('keyup',{code:'KeyE',bubbles:true}));});
   await a.waitForFunction(()=>document.getElementById('item-name').textContent==='等待道具');
   const peerId=await b.evaluate(()=>__racerDebug.playerId);await cb.close();await a.waitForFunction(id=>__racerDebug.racers.find(r=>r.id===id)?.bot,peerId);
@@ -70,7 +70,7 @@ function installFakeSocket(){
    const {RaceRenderer}=await import('/src/renderer.js'),{createRace}=await import('/src/simulation.js'),{getTrack,TRACKS}=await import('/src/tracks.js'),THREE=await import('/vendor/three.module.js');
    const container=document.createElement('div');container.style.cssText='position:fixed;inset:0';document.body.append(container);const view=new RaceRenderer(container),out=[];let renderTime=1;
    for(const track of TRACKS){const state=createRace({track:track.id}),me=state.racers[0];me.s=70;view.setRace(state);
-    for(const vx of [3,-3]){me.vx=vx;for(let i=0;i<60;i++)view.render(state,me.id,1/60,renderTime+=1/60);const pose=getTrack(track.id).sample(me.s),forward=new THREE.Vector3(0,0,1).applyQuaternion(view.cars.get(me.id).quaternion);out.push({track:track.id,vx,lateralHeading:forward.x*pose.nx+forward.z*pose.nz});}
+    for(const vx of [3,-3]){me.vx=vx;me.headingError=vx*.04;for(let i=0;i<60;i++)view.render(state,me.id,1/60,renderTime+=1/60);const pose=getTrack(track.id).sample(me.s),forward=new THREE.Vector3(0,0,1).applyQuaternion(view.cars.get(me.id).quaternion);out.push({track:track.id,vx,lateralHeading:forward.x*pose.nx+forward.z*pose.nz});}
    }return out;
   });
   for(const o of orientations)assert.equal(Math.sign(o.lateralHeading),Math.sign(o.vx),JSON.stringify(o));console.log('PASS vehicle heading matches sideways steering on all three tracks');await rc.close();

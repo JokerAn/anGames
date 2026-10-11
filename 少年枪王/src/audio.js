@@ -8,7 +8,11 @@ export class GameAudio {
         this.timer=setInterval(()=>this.musicTick(),260);
       }
       if(this.ctx.state==='suspended')await this.ctx.resume();
-    }catch{/* Audio availability must never prevent play. */}
+    }catch{
+      // Partially initialized audio must not reach later shot/respawn effects.
+      clearInterval(this.timer);this.timer=null;const context=this.ctx;this.ctx=null;this.master=null;
+      try{void context?.close?.().catch(()=>{});}catch{}
+    }
   }
   setVolume(v){this.volume=clamp(v,0,1);if(this.ctx)this.master.gain.setTargetAtTime(this.muted?0:this.volume*.48,this.ctx.currentTime,.05);}
   toggle(){this.muted=!this.muted;this.setVolume(this.volume);return this.muted;}
