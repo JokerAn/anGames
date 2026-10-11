@@ -30,5 +30,5 @@ test('手机短按道具不会丢失，多指操作和失去焦点均能正确�
 });
 test('键盘自动重复不重复记为点击；隐藏页面停止自动油门',t=>{
   const {controls,win,doc,emit}=fixture(t);emit(win,'keydown',{code:'KeyE'});emit(win,'keydown',{code:'KeyE',repeat:true});assert.equal(controls.read().itemPress,1);
-  doc.hidden=true;emit(doc,'visibilitychange');const input=controls.read();assert.equal(input.throttle,false);assert.equal(input.brake,true);assert.equal(input.steer,0);
+  doc.hidden=true;emit(doc,'visibilitychange');const input=controls.read();assert.equal(input.throttle,false);assert.equal(input.steer,0);
 });

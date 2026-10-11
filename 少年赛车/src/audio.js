@@ -1,6 +1,9 @@
 export class AudioEngine {
   constructor(){this.enabled=false;this.ctx=null;this.lastHit=0;this.lastBoost=false;}
-  async unlock(){try{if(!this.ctx){const AudioContext=window.AudioContext||window.webkitAudioContext;if(!AudioContext)return;this.ctx=new AudioContext();this.master=this.ctx.createGain();this.master.gain.value=0;this.master.connect(this.ctx.destination);
+  async unlock(){try{if(!this.ctx){const AudioContext=window.AudioContext||window.webkitAudioContext;if(!AudioContext)return;this.ctx=new AudioContext();this.master=this.ctx.createGain();
+    // Start audible as soon as the user interacts: the race begins on a click, so
+    // the engine should be heard without a separate trip to the sound button.
+    this.enabled=true;this.master.gain.value=.22;this.master.connect(this.ctx.destination);
     // Layered engine: a sawtooth body + a square sub-harmonic through a low-pass,
     // which reads like a small high-revving (Ferrari-ish) motor rather than a drone.
     this.motor=this.ctx.createOscillator();this.motor.type='sawtooth';
@@ -11,6 +14,8 @@ export class AudioEngine {
     this.motor.connect(this.filter);this.motorSub.connect(this.motorSubGain);this.motorSubGain.connect(this.filter);this.filter.connect(this.motorGain);this.motorGain.connect(this.master);
     this.motor.start();this.motorSub.start();}if(this.ctx.state==='suspended')await this.ctx.resume();}catch{}}
   async toggle(){await this.unlock();this.enabled=!this.enabled;if(this.master)this.master.gain.setTargetAtTime(this.enabled?.22:0,this.ctx.currentTime,.05);return this.enabled;}
+  // Explicit state used by the start button so a race always has sound.
+  enable(){if(this.ctx){this.enabled=true;this.master.gain.setTargetAtTime(.22,this.ctx.currentTime,.05);}}
   update(racer,active){
     if(!this.ctx)return;
     const v=racer?.v||0,t=this.ctx.currentTime;

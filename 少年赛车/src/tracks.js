@@ -1,7 +1,7 @@
 export const CARS = [
-  {id: 'comet', name: '流星 GT', tag: '均衡跑车', color: '#ff6940', speed: 1, accel: 1, grip: 1, mass: 1, stats: [82, 82, 85]},
-  {id: 'bolt', name: '闪电 R', tag: '轻量方程式', color: '#4de4d3', speed: 1.04, accel: 1.12, grip: 1.14, mass: .76, stats: [90, 96, 95]},
-  {id: 'titan', name: '泰坦 X', tag: '重装越野', color: '#b8a3ff', speed: .96, accel: .91, grip: .91, mass: 1.5, stats: [75, 73, 98]},
+  {id: 'comet', name: '红鬃 F8', tag: '中置跑车', color: '#e0231c', speed: 1, accel: 1, grip: 1, mass: 1, stats: [84, 84, 86]},
+  {id: 'bolt', name: '银箭 SF', tag: '轻量方程式', color: '#d9dde2', speed: 1.04, accel: 1.12, grip: 1.14, mass: .76, stats: [90, 96, 95]},
+  {id: 'titan', name: '曜夜 GTS', tag: 'GT 大跑车', color: '#1c1f27', speed: .96, accel: .91, grip: .91, mass: 1.5, stats: [76, 74, 98]},
 ];
 export const ENGINES = [
   {id: 'balanced', name: '街道 V6', tag: '均衡 · 容易上手', speed: 1, accel: 1, nitro: 1},

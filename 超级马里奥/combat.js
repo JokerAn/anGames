@@ -8,8 +8,8 @@ export const BULLET_LIFETIME = .95;
 // Classic fireball physics: the shot hops along the ground instead of flying in
 // a dead-straight line. Vertical velocity and a bounce send it skipping forward.
 // Sub-stepping keeps the hop stable no matter how large the frame delta is.
-export const BULLET_GRAVITY = 2100;
-export const BULLET_BOUNCE = 470;
+export const BULLET_GRAVITY = 1100;
+export const BULLET_BOUNCE = 250;
 export const BULLET_STEP = 1/120;
 
 // Earliest contact of a swept AABB (fromX,fromY -> toX,toY) with an expanded target box.

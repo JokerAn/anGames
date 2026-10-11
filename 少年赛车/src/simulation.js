@@ -2,8 +2,8 @@ import {CARS, ENGINES, TRACKS, ROAD_HALF, PICKUP_BOX, getTrack, clamp, mod, shor
 const BOT_NAMES = ['阿橙', '小闪', '车神阿布', '风速少年', '泡泡', '追风'];
 export const ITEMS = {nitro: {name: '超级氮气', icon: '↟'}, oil: {name: '减速油污', icon: '◉'}, pulse: {name: '减速脉冲', icon: 'ϟ'}, shield: {name: '防撞护盾', icon: '⬡'}};
 export function cleanInput(input = {}) {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) input = {throttle:false,brake:true};
-  return {steer: Number.isFinite(input.steer) ? clamp(input.steer, -1, 1) : 0, throttle: input.throttle !== false, brake: !!input.brake, drift: !!input.drift, nitro: !!input.nitro, item: !!input.item, itemPress: Number.isSafeInteger(input.itemPress) && input.itemPress >= 0 ? input.itemPress : 0};
+  if (!input || typeof input !== 'object' || Array.isArray(input)) input = {throttle:false};
+  return {steer: Number.isFinite(input.steer) ? clamp(input.steer, -1, 1) : 0, throttle: input.throttle !== false, drift: !!input.drift, nitro: !!input.nitro, item: !!input.item, itemPress: Number.isSafeInteger(input.itemPress) && input.itemPress >= 0 ? input.itemPress : 0};
 }
 export function cleanChoice(choice = {}) {
   if (!choice || typeof choice !== 'object' || Array.isArray(choice)) choice = {};
@@ -39,11 +39,22 @@ function useItem(race, racer, track) {
   event(race, racer, 'item', ITEMS[type].name);
 }
 function aiInput(race, racer, track) {
-  let target = Math.sin(race.time * .45 + racer.slot * 2) * 4.8;
+  const dif=race.difficulty||'normal';
+  // Bots weave into the racing line but with human-like error: a slow wander plus
+  // occasional bigger lapses, and they lift off the throttle now and then.
+  let target = Math.sin(race.time * .45 + racer.slot * 2) * 4.8 + Math.sin(race.time * .13 + racer.slot) * 2.2;
+  const lapse = dif === 'easy' ? .35 : .22;
+  if (Math.sin(race.time * .9 + racer.slot * 3.1) > 1 - lapse) target += (racer.slot % 2 ? 2.6 : -2.6);
   const obstacle = [...track.objects, ...race.traps].find(o => ['oil','barrier'].includes(o.type) && shortDistance(o.s, racer.s, track.length) > 0 && shortDistance(o.s, racer.s, track.length) < 36 && Math.abs(o.x - racer.x) < 3);
   if (obstacle) target = obstacle.x > 0 ? -4 : 4;
   const curvature = track.curvature(racer.s);
-  return {steer: clamp((target - racer.x) * .35 + curvature * racer.v * .22, -1, 1), throttle: true, brake: false, drift: Math.abs(curvature) > .011 && racer.v > 36, nitro: Math.abs(curvature) < .006 && racer.nitro > 40, item: !!racer.item && Math.sin(race.time * 2 + racer.slot) > .8};
+  // Damp their steering response and their use of curvature so they can't carve
+  // a perfect apex every corner like a pro driver.
+  const steerGain = dif === 'easy' ? .24 : .28;
+  // Lift off the throttle now and then, but never during the opening scramble —
+  // a surging bot would ram a slower-starting player off the grid.
+  const coasting = race.time > 2.5 && Math.sin(race.time * .6 + racer.slot * 2.4) > (dif === 'easy' ? .1 : .25);
+  return {steer: clamp((target - racer.x) * steerGain + curvature * racer.v * (dif === 'easy' ? .15 : .18), -1, 1), throttle: !coasting, drift: Math.abs(curvature) > .013 && racer.v > 36, nitro: Math.abs(curvature) < .006 && racer.nitro > 40, item: !!racer.item && Math.sin(race.time * 2 + racer.slot) > .8};
 }
 // Sweep the entire car movement against the pickup footprint, including diagonal drifts.
 // Using the nearest wrapped distance also handles crossing the start/finish seam.
@@ -93,9 +104,12 @@ export function stepRace(race, dt) {
       if (r.driftCharge > .65) {r.nitro = Math.min(100, r.nitro + r.driftCharge*18); r.boost = Math.max(r.boost, .65); event(race, r, 'drift', '漂移蓄能 +氮气');}
       r.driftCharge = 0;
     }
-    const maxSpeed =  60 * car.speed * engine.speed * (boosted ? 1.38 : 1) * (r.slow > 0 ? .51 : 1) * (r.bot ? (race.difficulty === 'easy' ? .76 : .87) + r.slot*.012 : 1);
-    let acceleration = input.throttle ? 24 * car.accel * engine.accel * (boosted ? 1.35 : 1) : -9;
-    if (input.brake) acceleration = -52;
+    // Bots were running near-perfect lines at nearly full human speed, so real
+    // players always finished last. Trim their pace and make them fallible.
+    const dif=race.difficulty||'normal', diffMult=r.bot?(dif==='easy'?.7:.8):1;
+    const maxSpeed =  60 * car.speed * engine.speed * (boosted ? 1.38 : 1) * (r.slow > 0 ? .51 : 1) * (r.bot ? diffMult + r.slot*.008 : 1);
+    // Acceleration/accel edge: bots no longer leap off the line as hard as you.
+    let acceleration = input.throttle ? 24 * car.accel * engine.accel * (boosted ? 1.35 : 1) * (r.bot ? .84 : 1) : -9;
     if (r.drifting) acceleration -= 5;
     r.v = clamp(r.v + acceleration*dt, 0, maxSpeed + Math.max(0, r.v-maxSpeed) * Math.exp(-dt*3));
     const curvature = track.curvature(r.s);

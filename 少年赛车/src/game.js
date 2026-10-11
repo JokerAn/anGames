@@ -28,14 +28,14 @@ $('laps').onchange=()=>{choice.laps=Number($('laps').value);save();};$('difficul
 $('sound').onclick=async()=>{const on=await audio.toggle();$('sound').querySelector('span').textContent=on?'音效开':'音效关';$('sound').setAttribute('aria-label',on?'关闭音效':'开启音效');};
 $('help').onclick=()=>$('help-dialog').showModal();document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
 function send(data){if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify(data));}
-$('start').onclick=()=>{void audio.unlock();save();if(mode==='solo')startSolo();else connect();};
+$('start').onclick=()=>{void audio.unlock().then(()=>audio.enable());save();if(mode==='solo')startSolo();else connect();};
 function startSolo(){playerId='local';beginRace(createRace({...choice,players:[{id:'local',car:choice.car,engine:choice.engine,name:$('nickname').value||'你'}]}));}
 function beginRace(state){
   race=state;accumulator=0;hudAccum=0;inputAccum=0;paused=false;lastEvent=0;lastCount='';resultShown=false;gameActive=true;lastStateAt=performance.now();
   document.querySelectorAll('dialog[open]').forEach(d=>d.close());$('garage').hidden=true;$('race-screen').hidden=false;$('spectating').hidden=true;
   controls.autoThrottle=$('auto-throttle').checked;controls.enabled=true;controls.reset();$('throttle-button').hidden=controls.autoThrottle;
-  graphics.setContainer($('race-view'));graphics.setRace(race);$('hud-track').textContent=getTrack(race.trackId).name;
-  $('race-message').textContent='';$('speed-lines').style.opacity=0;window.scrollTo(0,0);
+  graphics.setContainer($('race-view'));graphics.setRace(race,playerId);$('hud-track').textContent=getTrack(race.trackId).name;
+  $('race-message').textContent='';$('speed-lines').style.opacity=0;window.scrollTo(0,0);armBackGuard();
 }
 function connect(){
   const room=$('room-code').value.trim();
@@ -130,6 +130,15 @@ function showResult(){
   $('again').hidden=mode==='lan'&&lobby?.host!==playerId;$('again').textContent=mode==='lan'?'回房间再战':'再跑一场 ↗';$('result-dialog').showModal();audio.effect('finish');
 }
 $('result-dialog').addEventListener('cancel',e=>e.preventDefault());
+// Old phones' browsers treat an edge drag as back/forward navigation, which
+// yanks the player out mid-race. Swallow horizontal edge swipes on the document.
+const EDGE=28;
+document.addEventListener('touchmove',e=>{if(!gameActive)return;const t=e.touches[0];if(!t)return;const atEdge=t.clientX<EDGE||t.clientX>innerWidth-EDGE;if(atEdge)e.preventDefault();},{passive:false});
+// Keep a sentinel history entry so the hardware/gesture back closes the race and
+// returns to the garage instead of leaving the page entirely.
+function armBackGuard(){history.pushState({screen:'race'},'');}
+window.addEventListener('popstate',()=>{if(gameActive){backToGarage();toast('已返回车库');}});
+
 let prev=performance.now(),accumulator=0,hudAccum=0,inputAccum=0,lastBoosting=false;
 function frame(now){const dt=Math.min(.1,(now-prev)/1000);prev=now;
   if(race&&gameActive){

@@ -165,7 +165,7 @@ function updateShooting(dt){
   const p=state.player,l=state.level;
   const requested=input.has('shoot')||shootQueued;shootQueued=false;
   if(requested&&p.shotCooldown<=0&&state.projectiles.length<MAX_PROJECTILES){
-    const y=p.y+p.h-(p.crouch?15:23),x=p.x+p.w/2+p.facing*31;
+    const y=p.y+p.h-(p.crouch?18:40),x=p.x+p.w/2+p.facing*31;
     state.projectiles.push({x,y,originX:p.x+p.w/2,vx:p.facing*BULLET_SPEED,life:BULLET_LIFETIME});
     p.shotCooldown=SHOT_COOLDOWN;p.shotFlash=.09;sound.play('shoot');
   }

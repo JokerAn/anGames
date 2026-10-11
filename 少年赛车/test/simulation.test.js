@@ -17,7 +17,7 @@ test('输入和车型容错，客户端不能传速度、位置篡改比赛',()=
   assert.equal(cleanInput({steer:Infinity}).steer,0);assert.equal(cleanInput({steer:200}).steer,1);assert.equal(cleanChoice({car:'bad',engine:'bad'}).car,'comet');assert.equal(cleanChoice({name:'x'.repeat(40)}).name.length,12);assert.equal(cleanInput({s:1e9,v:1e9}).s,undefined);assert.equal(snapshot(active()).racers[0].cooldowns,undefined);
 });
 test('手动油门、刹车、转向和护栏碰撞生效',()=>{
-  const r=active(),p=r.racers[0];p.input={throttle:false};advance(r,1);assert.equal(p.v,0);p.input={throttle:true,steer:1};advance(r,1);assert.ok(p.v>0);assert.ok(p.x>-2.5);p.input={throttle:false,brake:true};advance(r,1);assert.equal(p.v,0);p.x=8;p.v=40;p.input={steer:1};advance(r,.1);assert.ok(p.x<=8);assert.ok(r.events.some(e=>e.type==='hit'));
+  const r=active(),p=r.racers[0];p.input={throttle:false};advance(r,1);assert.equal(p.v,0);p.input={throttle:true,steer:1};advance(r,1);assert.ok(p.v>0);assert.ok(p.x>-2.5);p.x=8;p.v=40;p.input={steer:1};advance(r,.1);assert.ok(p.x<=8);assert.ok(r.events.some(e=>e.type==='hit'));
 });
 test('撞车产生速度损失与横向分离',()=>{
   const r=active(),[a,b]=r.racers;a.s=20;b.s=21;a.x=0;b.x=.6;a.v=b.v=40;b.bot=false;stepRace(r,1/60);assert.ok(a.v<40);assert.ok(Math.abs(a.x-b.x)>=1.94);assert.ok(r.events.some(e=>e.text==='车身碰撞'));
@@ -34,7 +34,7 @@ test('油污与脉冲可释放；按住道具不会连发',()=>{
   const r=active(),[a,b]=r.racers;a.s=30;a.item='oil';a.input={item:true};stepRace(r,1/60);assert.equal(r.traps.length,1);const trapId=r.traps[0].id;a.item='pulse';stepRace(r,1/60);assert.equal(a.item,'pulse');a.input={};stepRace(r,1/60);b.s=a.s+20;b.shield=0;a.input={item:true};stepRace(r,1/60);assert.ok(b.slow>0);assert.equal(a.item,null);advance(r,20);assert.ok(!r.traps.some(t=>t.id===trapId));
 });
 test('冲线排名按顺序，未完成者在等待窗口后结算',()=>{
-  const r=active(),t=getTrack(r.trackId),[a,b]=r.racers;a.s=t.length*2-1;a.v=60;b.s=t.length*2-5;b.v=50;advance(r,.2);assert.equal(a.rank,1);assert.equal(b.rank,2);assert.ok(a.finishTime!==null);assert.ok(a.bestLap>0);r.racers.slice(2).forEach(p=>{p.bot=false;p.input={throttle:false,brake:true};});advance(r,36);assert.equal(r.status,'finished');assert.ok(r.racers.some(p=>p.finishTime===null));
+  const r=active(),t=getTrack(r.trackId),[a,b]=r.racers;a.s=t.length*2-1;a.v=60;b.s=t.length*2-5;b.v=50;advance(r,.2);assert.equal(a.rank,1);assert.equal(b.rank,2);assert.ok(a.finishTime!==null);assert.ok(a.bestLap>0);r.racers.slice(2).forEach(p=>{p.bot=false;p.input={throttle:false};});advance(r,36);assert.equal(r.status,'finished');assert.ok(r.racers.some(p=>p.finishTime===null));
 });
 for(const track of TRACKS)test(`${track.name}：六个人机可完赛、无非有限状态`,()=>{
   const r=createRace({track:track.id,laps:2,players:[]});advance(r,160);assert.equal(r.status,'finished');assert.equal(r.finishOrder.length,6);for(const p of r.racers)assert.ok(Number.isFinite(p.s+p.x+p.v));
@@ -106,7 +106,7 @@ test('护盾连续擦墙不会每帧刷屏，也不会产生受伤闪烁',()=>{
   assert.ok(race.events.filter(e=>e.type==='shield').length<=4);assert.equal(me.hit,0);
 });
 test('异常输入会安全刹车，非法道具点击序号不会进入比赛状态',()=>{
-  for(const input of [null,[],true,'bad']){const clean=cleanInput(input);assert.equal(clean.throttle,false);assert.equal(clean.brake,true);assert.equal(clean.itemPress,0);}
+  for(const input of [null,[],true,'bad']){const clean=cleanInput(input);assert.equal(clean.throttle,false);assert.equal(clean.itemPress,0);}
   for(const itemPress of [-1,Infinity,NaN,1.5,Number.MAX_SAFE_INTEGER+1])assert.equal(cleanInput({itemPress}).itemPress,0);
 });
 test('异常昵称和配置不会抛错，使用安全默认值',()=>{

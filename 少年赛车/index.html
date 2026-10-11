@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#101b2b"><meta name="description" content="少年赛车：手机 3D 街机赛车，漂移、氮气与好友局域网竞速。">
   <title>少年赛车 · 让热爱，全速向前</title><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css">
 </head>
@@ -35,7 +35,7 @@
   <div class="race-side"><canvas id="minimap" width="240" height="180" aria-label="赛道小地图"></canvas><div id="leaderboard"></div></div>
   <div id="race-message" role="status"></div><div id="countdown"></div><div id="spectating" hidden>已冲线 · 等待其他车手</div>
   <div class="speedometer"><div><strong id="speed">0</strong><span>km/h</span></div><div class="nitro-track"><i id="nitro-fill"></i></div><small id="nitro-label">NITRO 55%</small></div>
-  <div class="touch-controls" id="touch-controls"><div class="steering"><div class="joystick" id="joy-steer" role="group" aria-label="转向摇杆"><div class="joy-ring"></div><span class="joy-knob" id="joy-steer-knob"></span></div><button data-control="brake" class="control brake">刹车</button></div><div class="actions"><button data-control="item" class="control item-button"><b id="item-icon">◇</b><span id="item-name">等待道具</span></button><button data-control="drift" class="control drift-button">漂移<small>DRIFT</small></button><button data-control="nitro" class="control nitro-button">↟<small>氮气</small></button><button data-control="throttle" id="throttle-button" class="control throttle-button" hidden>油门</button></div></div>
+  <div class="touch-controls" id="touch-controls"><div class="steering"><div class="joystick" id="joy-steer" role="group" aria-label="转向摇杆"><div class="joy-ring"></div><span class="joy-knob" id="joy-steer-knob"></span></div></div><div class="actions"><button data-control="item" class="control item-button"><b id="item-icon">◇</b><span id="item-name">等待道具</span></button><button data-control="drift" class="control drift-button">漂移<small>DRIFT</small></button><button data-control="nitro" class="control nitro-button">↟<small>氮气</small></button><button data-control="throttle" id="throttle-button" class="control throttle-button" hidden>油门</button></div></div>
   <div class="keyboard-hint">← → 转向　空格 漂移　Shift 氮气　E 道具　↓ 刹车　Esc 菜单</div>
 </section>
 <div id="toast" role="alert" hidden></div>
