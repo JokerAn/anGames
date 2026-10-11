@@ -9,9 +9,9 @@ export const ENGINES = [
   {id: 'electric', name: '电驱 E', tag: '加速 +25% · 氮气更持久', speed: .96, accel: 1.25, nitro: 1.25},
 ];
 export const TRACKS = [
-  {id: 'coast', name: '晴空海岸', tag: 'COASTLINE', desc: '海风、棕榈与全速长弯', difficulty: '入门', color: '#4de4d3', sky: '#b9dced', ground: '#d5c99e', road: '#36495b', radius: [175, 128], wave: 13, hills: 2.5},
-  {id: 'canyon', name: '赤岩峡谷', tag: 'RED CANYON', desc: '起伏山路与连续 S 弯', difficulty: '进阶', color: '#ffac68', sky: '#ecd0af', ground: '#af7657', road: '#544b50', radius: [157, 134], wave: 36, hills: 8},
-  {id: 'neon', name: '霓虹都市', tag: 'NEON CIRCUIT', desc: '夜色、光轨与高速对决', difficulty: '挑战', color: '#b8a3ff', sky: '#10152f', ground: '#171c34', road: '#2d344e', radius: [165, 145], wave: 27, hills: 4},
+  {id: 'coast', name: '晴空海岸', tag: 'COASTLINE', desc: '海风、棕榈与连续急弯', difficulty: '入门', color: '#4de4d3', sky: '#b9dced', ground: '#d5c99e', road: '#36495b', radius: [175, 128], wave: 13, hills: 2.5, theme: 'coast'},
+  {id: 'canyon', name: '溪涧小路', tag: 'CREEK PASS', desc: '山谷溪流、发夹弯与窄桥', difficulty: '进阶', color: '#ffac68', sky: '#ecd0af', ground: '#af7657', road: '#544b50', radius: [157, 134], wave: 36, hills: 8, theme: 'creek'},
+  {id: 'neon', name: '赛博夜城', tag: 'CYBER CITY', desc: '霓虹、光轨与高速对决', difficulty: '挑战', color: '#b8a3ff', sky: '#0b1030', ground: '#141a30', road: '#2b3350', radius: [165, 145], wave: 27, hills: 4, theme: 'cyber'},
 ];
 export const ROAD_HALF = 9;
 // The rendered crate and pickup sweep share dimensions; extra reach includes the car body.
@@ -22,11 +22,33 @@ const cache = new Map();
 export function getTrack(id = 'coast') {
   if (cache.has(id)) return cache.get(id);
   const config = TRACKS.find(t => t.id === id) || TRACKS[0];
-  const points = [], cumulative = [0], count = 720;
+  const points = [], cumulative = [0], count = 1440;
+  // A longer lap with two deliberately complex sections: a chicane cluster at
+  // ~30% and a wide sweeping esses complex at ~68%. Both add extra radius wobble
+  // (tight turns) and hill variation so they read as technical, not flat.
+  //
+  // Wobble frequency is bounded by the sampling rate. With `count` points over
+  // 2π, the phase step per point is 2π*freq/count; keeping freq <= ~count/12
+  // stops the centreline from doubling back on itself (which tears the road).
+  const hasFeatures = config.features !== false;
   for (let i = 0; i <= count; i++) {
     const a = i / count * Math.PI * 2;
-    const r = config.wave * Math.sin(3 * a);
-    const p = {x: (config.radius[0] + r) * Math.cos(a), z: (config.radius[1] + r) * Math.sin(a), y: 2 + config.hills * (1 + Math.sin(2 * a))};
+    let r = config.wave * Math.sin(3 * a);
+    let y = 2 + config.hills * (1 + Math.sin(2 * a));
+    if (hasFeatures) {
+      // Chicane: rapid, tighter left-right flicks around the 30% mark.
+      const chic = Math.exp(-((a - 1.9) ** 2) / .05);
+      r += chic * 20 * Math.sin(a * 11);
+      y += chic * config.hills * 1.6 * Math.cos(a * 9);
+      // Esses: a long, widening sweep of linked corners near 68%.
+      const ess = Math.exp(-((a - 4.25) ** 2) / .16);
+      r += ess * 24 * Math.sin(a * 7);
+      y += ess * config.hills * 1.1 * Math.sin(a * 6);
+      // A short climb-and-crest to break up the flat run down the far side.
+      const crest = Math.exp(-((a - 5.6) ** 2) / .04);
+      y += crest * Math.max(6, config.hills) * 2.2;
+    }
+    const p = {x: (config.radius[0] + r) * Math.cos(a), z: (config.radius[1] + r) * Math.sin(a), y};
     points.push(p);
     if (i) cumulative.push(cumulative[i - 1] + Math.hypot(p.x - points[i-1].x, p.z - points[i-1].z));
   }

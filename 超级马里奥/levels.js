@@ -13,7 +13,7 @@ export const THEMES = [
 
 export const MODES = {
   easy: { name:'简单', hearts:3, enemyScale:1, timeScale:1, gapExtra:0, crumbleDelay:1.1, platformScale:1 },
-  hard: { name:'困难', hearts:2, enemyScale:1.5, timeScale:.7, gapExtra:40, crumbleDelay:.55, platformScale:1.4 }
+  hard: { name:'困难', hearts:2, enemyScale:1.6, timeScale:.65, gapExtra:32, crumbleDelay:.5, platformScale:1.5 }
 };
 
 // Hand-authored routes. The original first three easy layouts remain unchanged.
@@ -54,7 +54,7 @@ export function createLevel(index, difficulty='easy') {
     enemies.push({x,y:516,w:38,h:34,origin:x,range,vx:-(42+Math.min(index,5)*15)*mode.enemyScale,dead:false,phase});
   };
   clusters.forEach((x,i)=>{
-    for(let j=0;j<3;j++)blocks.push({x:x+j*46,y:405-(i%2)*20,w:44,h:44,kind:j===1?'question':'brick',used:false,bump:0,reward:i===1?'shield':i%3===2?'ammo':'coin'});
+    for(let j=0;j<3;j++)blocks.push({x:x+j*46,y:405-(i%2)*20,w:44,h:44,kind:j===1?'question':'brick',used:false,bump:0,reward:['coin','ammo','shield','star','mushroom'][(i+j)%5]});
     for(let j=0;j<4;j++)coins.push({x:x-5+j*44,y:343-(i%2)*20,taken:false});
     addEnemy(x+155,i);
     if(hard&&i%2===0)addEnemy(x+260,i+.5,48);

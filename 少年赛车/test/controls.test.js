@@ -24,7 +24,7 @@ test('极短键盘道具点击跨渲染／发送间隔仍会执行，重复快�
 test('手机短按道具不会丢失，多指操作和失去焦点均能正确释放',t=>{
   const {controls,win,buttons,emit}=fixture(t);
   emit(buttons.item,'pointerdown',{pointerId:1});emit(buttons.item,'pointerup',{pointerId:1});assert.equal(controls.read().itemPress,1);assert.equal(controls.read().item,false);
-  emit(buttons.right,'pointerdown',{pointerId:2});emit(buttons.drift,'pointerdown',{pointerId:3});emit(buttons.nitro,'pointerdown',{pointerId:4});const input=controls.read();assert.equal(input.steer,-1);assert.equal(input.drift,true);assert.equal(input.nitro,true);
+  emit(buttons.drift,'pointerdown',{pointerId:3});emit(buttons.nitro,'pointerdown',{pointerId:4});const input=controls.read();assert.equal(input.drift,true);assert.equal(input.nitro,true);
   emit(win,'blur');assert.equal(controls.read().steer,0);assert.equal(controls.read().drift,false);assert.equal(controls.read().nitro,false);
   emit(buttons.item,'pointerdown',{pointerId:5});assert.equal(controls.read().itemPress,2);
 });

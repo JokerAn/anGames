@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { WORLD, WEAPONS, getMap, cameraPose, wallDistance } from './simulation.js';
+import { WORLD, WEAPONS, getMap, cameraPose, wallDistance, MAX_HP } from './simulation.js';
 const colors={blue:0x549ec6,red:0xec8c7e};
 const geometries={box:new THREE.BoxGeometry(1,1,1),sphere:new THREE.SphereGeometry(1,10,8),cylinder:new THREE.CylinderGeometry(1,1,1,12),cone:new THREE.ConeGeometry(1,1,6)};
 const mats=new Map();
@@ -16,13 +16,14 @@ function createHealthHud(){
   return {sprite,canvas,texture,key:'',value:100};
 }
 function paintHealth(hud,actor,friendly){
-  const hp=Math.max(0,Math.min(100,Math.ceil(actor.hp))),shield=actor.shield>0;
+  const hp=Math.max(0,Math.min(MAX_HP,Math.ceil(actor.hp))),shield=actor.shield>0;
   const key=`${hp}|${shield}|${friendly}`;if(key===hud.key)return;
   hud.key=key;hud.value=hp;const c=hud.canvas.getContext('2d');c.clearRect(0,0,256,64);
   c.fillStyle='#142b2deb';c.beginPath();c.roundRect(1,5,254,54,10);c.fill();
   c.strokeStyle=shield?'#ffe69d':'#eef5e178';c.lineWidth=2;c.stroke();
   c.fillStyle='#546566';c.fillRect(10,21,173,23);
-  c.fillStyle=hp<=30?'#ffbd68':friendly?'#85e4aa':'#ff8278';c.fillRect(10,21,173*hp/100,23);
+  const ratio=hp/MAX_HP;
+  c.fillStyle=ratio<=.3?'#ffbd68':friendly?'#85e4aa':'#ff8278';c.fillRect(10,21,173*ratio,23);
   c.fillStyle='#112a2d66';for(let i=1;i<4;i++)c.fillRect(10+173*i/4,21,2,23);
   c.fillStyle='#ffffff';c.font='bold 33px system-ui, sans-serif';c.textAlign='right';c.textBaseline='middle';c.fillText(String(hp),246,33);
   hud.texture.needsUpdate=true;
@@ -43,9 +44,20 @@ export function gunModel(weapon='blaster'){
   const group=new THREE.Group(),color=WEAPONS[weapon]?.color||'#ffb84a',len=weapon==='sniper'?1.5:weapon==='smg'?.75:1.05;
   box(group,color,0,0,0,.26,.28,len);box(group,'#f5f0d7',0,.06,-len/2-.08,.21,.19,.2);box(group,'#4b6965',0,.04,-len/2-.2,.13,.13,.13);box(group,'#536b65',0,-.21,.2,.15,.3,.19).rotation.x=-.2;
   box(group,'#d9d9b9',0,0,len/2+.09,.22,.19,.22);box(group,'#46655e',0,.17,.05,.13,.06,.25);box(group,'#fff2b1',.137,0,.02,.014,.11,.22);
+  const muzzle=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({color:0xfff2c0,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));
+  muzzle.rotation.x=-Math.PI/2;muzzle.position.set(0,0,len/2+.22);muzzle.scale.set(.46,.46,1);muzzle.visible=false;group.add(muzzle);
+  const glow=new THREE.Mesh(new THREE.SphereGeometry(.19,10,8),new THREE.MeshBasicMaterial({color:0xffd888,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));
+  glow.position.set(0,0,len/2+.2);glow.visible=false;group.add(glow);
+  group.userData.muzzle={star:muzzle,glow,team:0,time:0};
   if(weapon==='sniper'){const scope=shape(group,'cylinder','#45675f',[0,.29,-.1],[.095,.4,.095]);scope.rotation.x=Math.PI/2;sphere(group,'#98dacc',0,.29,-.31,.08);}
   if(weapon==='shotgun'){box(group,'#f4d774',0,-.03,-.57,.36,.18,.31);}
-  mergeStatic(group);return group;
+  mergeStatic(group,new Set([group.userData.muzzle.star,group.userData.muzzle.glow]));return group;
+}
+export function flashMuzzle(gun,team,time){
+  const m=gun?.userData?.muzzle;if(!m)return;
+  const color=team==='blue'?0xbfeeff:0xffd6a8;
+  m.star.material.color.setHex(color);m.glow.material.color.setHex(color);
+  m.star.visible=true;m.glow.visible=true;m.start=time;m.peak=1;
 }
 function disposeGroup(group){
   const shared=new Set(mats.values());group.traverse(o=>{if(o.geometry&&!o.isSprite&&!Object.values(geometries).includes(o.geometry))o.geometry.dispose();if(o.material&&!shared.has(o.material)){o.material.map?.dispose();o.material.dispose();}});group.clear();
@@ -93,15 +105,18 @@ export class ArenaRenderer {
   }
   buildWorld(){
     const map=this.map,harbor=map.id==='harbor',desert=map.id==='desert';
-    box(this.world,map.ground,0,-.65,0,51,1.3,51);box(this.world,desert?'#bb926c':'#c5bc9d',0,-1.45,0,51,.5,51);
-    if(harbor){box(this.world,'#8cc2d3',0,-1.9,0,150,.15,150);for(let i=-60;i<=60;i+=8)box(this.world,'#abd7dd',i,-1.8,38+(i%3)*2,4,.01,.12);}
+    // Geometry is derived from WORLD so the arena stays consistent with the
+    // collision bounds after any map resize (WORLD is currently 50, not 25).
+    const half=WORLD+.6;
+    box(this.world,map.ground,0,-.65,0,half*2,1.3,half*2);box(this.world,desert?'#bb926c':'#c5bc9d',0,-1.45,0,half*2,.5,half*2);
+    if(harbor){box(this.world,'#8cc2d3',0,-1.9,0,150,.15,150);for(let i=-60;i<=60;i+=8)box(this.world,'#abd7dd',i,-1.8,WORLD*.76+(i%3)*2,4,.01,.12);}
     if(desert)box(this.world,'#dbc499',0,-1.8,0,150,.15,150);
-    if(!desert)for(let i=-24;i<=24;i+=4){box(this.world,harbor?'#acbbbe':'#c2d3ab',i,.006,0,.025,.012,50);box(this.world,harbor?'#acbbbe':'#c2d3ab',0,.007,i,50,.012,.025);}
-    box(this.world,map.path,0,.017,0,harbor?6:9,.025,48);box(this.world,map.path,0,.02,0,48,.025,desert?6:8);
+    if(!desert)for(let i=-Math.round(WORLD);i<=WORLD;i+=4){box(this.world,harbor?'#acbbbe':'#c2d3ab',i,.006,0,.025,.012,WORLD*2);box(this.world,harbor?'#acbbbe':'#c2d3ab',0,.007,i,WORLD*2,.012,.025);}
+    box(this.world,map.path,0,.017,0,harbor?6:9,.025,WORLD*2-.4);box(this.world,map.path,0,.02,0,WORLD*2-.4,.025,desert?6:8);
     for(const team of ['blue','red']){
-      const z=team==='blue'?22:-22,col=team==='blue'?0xa5cad4:0xe9b6a1;
-      box(this.world,col,0,.037,z,34,.04,4);for(let x=-16;x<=16;x+=4)box(this.world,0xfaf0d1,x,.065,z,1.5,.01,.13);
-      const sign=new THREE.Mesh(new THREE.PlaneGeometry(6,1.8),label(team==='blue'?'BLUE BASE':'RED BASE'));sign.position.set(0,3.9,team==='blue'?24.8:-24.8);if(team==='blue')sign.rotation.y=Math.PI;this.world.add(sign);
+      const z=team==='blue'?WORLD*.88:-WORLD*.88,col=team==='blue'?0xa5cad4:0xe9b6a1;
+      box(this.world,col,0,.037,z,WORLD*1.36,.04,4);for(let x=-WORLD*.64;x<=WORLD*.64;x+=4)box(this.world,0xfaf0d1,x,.065,z,1.5,.01,.13);
+      const sign=new THREE.Mesh(new THREE.PlaneGeometry(6,1.8),label(team==='blue'?'BLUE BASE':'RED BASE'));sign.position.set(0,3.9,team==='blue'?WORLD*.992:-WORLD*.992);if(team==='blue')sign.rotation.y=Math.PI;this.world.add(sign);
       for(const x of [-3.5,3.5])box(this.world,colors[team],x,2,z+(team==='blue'?2.8:-2.8),.3,4,.3);
     }
     for(const o of map.obstacles){
@@ -127,8 +142,10 @@ export class ArenaRenderer {
         else{for(let x=o.x-o.w/2+.55;x<o.x+o.w/2;x+=1.2)shape(this.world,'cylinder',o.color,[x,o.h+.06,o.z],[.27,.12,.27]);if(o.h>2){box(this.world,0x628d7c,o.x,o.h*.5,o.z-o.d/2-.015,o.w*.55,.65,.03);box(this.world,0xf8eac5,o.x,o.h*.5,o.z-o.d/2-.035,.07,.65,.02);}}
       }
     }
-    for(let i=-24;i<=24;i+=2){for(const [x,z] of [[i,-25],[i,25],[-25,i],[25,i]])box(this.world,map.trim,x,.7,z,.23,1.4,.23);}
-    for(const z of [-25,25]){box(this.world,map.trim,0,.55,z,50,.2,.16);box(this.world,map.trim,0,1.1,z,50,.2,.16);}for(const x of [-25,25]){box(this.world,map.trim,x,.55,0,.16,.2,50);box(this.world,map.trim,x,1.1,0,.16,.2,50);}
+    // Fence posts and rails are placed from WORLD so the visible barrier lines up
+    // with the collision bounds; hard-coded 25 let players walk through the fence.
+    for(let i=-WORLD;i<=WORLD;i+=2){for(const [x,z] of [[i,-WORLD],[i,WORLD],[-WORLD,i],[WORLD,i]])box(this.world,map.trim,x,.7,z,.23,1.4,.23);}
+    for(const z of [-WORLD,WORLD]){box(this.world,map.trim,0,.55,z,WORLD*2,.2,.16);box(this.world,map.trim,0,1.1,z,WORLD*2,.2,.16);}for(const x of [-WORLD,WORLD]){box(this.world,map.trim,x,.55,0,.16,.2,WORLD*2);box(this.world,map.trim,x,1.1,0,.16,.2,WORLD*2);}
     if(harbor){
       // Cranes and lighthouse are outside the playable fence.
       for(const x of [-34,34]){box(this.world,'#d6ae62',x,6,0,1,12,1);box(this.world,'#d6ae62',x,12,0,1,1,18);box(this.world,'#708b94',x,8,-8,.09,8,.09);box(this.world,'#e5c788',x,4,-8,1,.3,1);}
@@ -173,7 +190,9 @@ export class ArenaRenderer {
       const pose=cameraPose({...me,viewAspect:this.camera.aspect},yaw,pitch,aim,this.map.id);
       // Orbit reacts immediately; a collision-constrained camera never eases through cover.
       this.camera.position.set(pose.x,pose.y,pose.z);this.camera.rotation.set(pitch,yaw,0,'YXZ');this.lastPlayer=playerId;
-      const fov=aim?(me.weapon==='sniper'?38:52):70;this.camera.fov+=(fov-this.camera.fov)*Math.min(1,dt*14);this.camera.updateProjectionMatrix();
+      // Sniper scope: ~8x zoom (75° default / ~9.4° ≈ 8x). Other weapons keep a
+      // mild shoulder pull. Lerp fast so the scope snaps in like a real optic.
+      const fov=aim?(me.weapon==='sniper'?9.4:52):70;this.camera.fov+=(fov-this.camera.fov)*Math.min(1,dt*(me.weapon==='sniper'?22:14));this.camera.updateProjectionMatrix();
     }
     if(me){
       const pixelUnit=2*Math.tan(THREE.MathUtils.degToRad(this.camera.fov/2))/Math.max(1,this.container.clientHeight);
@@ -196,17 +215,48 @@ export class ArenaRenderer {
   effect(event,playerId){
     if(event.type==='shot'){
       if(event.actor===playerId)this.recoil=1;
+      const shooter=this.models.get(event.actor);
+      if(shooter)flashMuzzle(shooter.userData.gun,event.team,this.time);
+      const color=event.team==='blue'?0xa9e8ff:0xffdba9;
+      const hot=event.team==='blue'?0xeafaff:0xfff3dd;
+      // A short-lived point light at the muzzle sells the flash and briefly
+      // lights up nearby walls and the shooter itself, so full-auto reads as a
+      // string of real muzzle flashes instead of a flat overlay.
+      const origin=new THREE.Vector3(event.origin.x,event.origin.y,event.origin.z);
+      const flash=new THREE.PointLight(color,3.2,9,2);flash.position.copy(origin);this.scene.add(flash);
+      this.effects.push({mesh:flash,life:.09,max:.09,light:true});
+      const burst=new THREE.Mesh(new THREE.SphereGeometry(.26,6,5),new THREE.MeshBasicMaterial({color:hot,transparent:true,opacity:.95,blending:THREE.AdditiveBlending,depthWrite:false}));
+      burst.position.copy(origin);this.scene.add(burst);this.effects.push({mesh:burst,life:.1,max:.1,grow:true});
       for(const end of event.traces.slice(0,3)){
-        const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(event.origin.x,event.origin.y-.1,event.origin.z),new THREE.Vector3(end.x,end.y,end.z)]),new THREE.LineBasicMaterial({color:event.team==='blue'?0xa9e8ff:0xffdba9,transparent:true,opacity:.85}));this.scene.add(line);this.effects.push({mesh:line,life:.11,max:.11});
+        // A bare 1px line is nearly invisible on the bright arena. Draw a glowing
+        // tracer: a thick additive cylinder for the body plus a bright core line,
+        // sized from the actual shot length so distant shots stay readable.
+        const from=new THREE.Vector3(event.origin.x,event.origin.y-.1,event.origin.z),to=new THREE.Vector3(end.x,end.y,end.z);
+        const len=from.distanceTo(to)||.001;
+        const tube=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,len,6),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.75,blending:THREE.AdditiveBlending,depthWrite:false}));
+        tube.position.copy(from).lerp(to,.5);tube.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),to.clone().sub(from).normalize());
+        this.scene.add(tube);this.effects.push({mesh:tube,life:.16,max:.16,grow:true});
+        const core=new THREE.Line(new THREE.BufferGeometry().setFromPoints([from,to]),new THREE.LineBasicMaterial({color:hot,transparent:true,opacity:.95}));
+        this.scene.add(core);this.effects.push({mesh:core,life:.16,max:.16});
+        // Impact spark so hits read clearly at range.
+        const spark=new THREE.Mesh(new THREE.SphereGeometry(.28,6,5),new THREE.MeshBasicMaterial({color:hot,transparent:true,opacity:.9,blending:THREE.AdditiveBlending,depthWrite:false}));
+        spark.position.copy(to);this.scene.add(spark);this.effects.push({mesh:spark,life:.14,max:.14,grow:true});
       }
     }
     if(event.type==='pop'||event.type==='hit'){
       const count=event.type==='pop'?18:4;
       for(let i=0;i<count;i++){const mesh=new THREE.Mesh(new THREE.SphereGeometry(event.type==='pop'?.13:.07,5,4),new THREE.MeshBasicMaterial({color:[0xffd985,0xb4e4cc,0xf4b9b1,0xfaf5d5][i%4],transparent:true}));mesh.position.set(event.x,event.y,event.z);this.scene.add(mesh);this.effects.push({mesh,life:event.type==='pop'?.85:.28,max:event.type==='pop'?.85:.28,velocity:new THREE.Vector3((Math.random()-.5)*5,Math.random()*4,(Math.random()-.5)*5)});}
     }
-    while(this.effects.length>160){const e=this.effects.shift();this.scene.remove(e.mesh);e.mesh.geometry.dispose();e.mesh.material.dispose();}
+    while(this.effects.length>160){const e=this.effects.shift();this.scene.remove(e.mesh);e.mesh.geometry?.dispose();e.mesh.material?.dispose();}
   }
   render(dt){if(this.webglLost)return;this.time+=dt;
+    for(const model of this.models.values()){
+      const gun=model.userData.gun,m=gun?.userData?.muzzle;
+      if(m&&m.peak>0){const age=this.time-m.start;
+        if(age>.12){m.peak=0;m.star.visible=false;m.glow.visible=false;}
+        else{const k=1-age/.12;m.star.material.opacity=.95*k;m.glow.material.opacity=.8*k;m.star.rotation.z=this.time*22;m.glow.scale.setScalar((.6+.6*k));}
+      }
+    }
     for(let i=this.effects.length-1;i>=0;i--){const e=this.effects[i];e.life-=dt;if(e.life<=0){this.scene.remove(e.mesh);e.mesh.geometry.dispose();e.mesh.material.dispose();this.effects.splice(i,1);continue;}e.mesh.material.opacity=e.life/e.max;if(e.velocity){e.mesh.position.addScaledVector(e.velocity,dt);e.velocity.y-=dt*8;}}
     if(this.mode==='preview')this.previewActors.children.forEach((r,i)=>{r.position.y=Math.sin(this.time*1.7+i)*.09;r.rotation.y=Math.PI+.6+Math.sin(this.time*.4+i)*.1;});
     this.renderer.render(this.scene,this.mode==='preview'?this.previewCamera:this.camera);

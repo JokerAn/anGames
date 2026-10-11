@@ -115,7 +115,9 @@ function updateHUD(){
   $('speed-lines').style.opacity=me.boosting?1:0;$('hit-flash').style.opacity=me.hit;
   const count=race.time<0?String(Math.ceil(-race.time)):race.time<.8?'GO!':'';$('countdown').textContent=count;if(count&&count!==lastCount)audio.effect('count');lastCount=count;
   $('spectating').hidden=me.finishTime===null||race.status==='finished';
-  for(const e of race.events){if(e.id>lastEvent&&e.racer===playerId){$('race-message').textContent=e.text;audio.effect(e.type);if(e.type==='hit'&&!matchMedia('(prefers-reduced-motion: reduce)').matches)navigator.vibrate?.(35);}lastEvent=Math.max(lastEvent,e.id);}
+  for(const e of race.events){if(e.id>lastEvent&&e.racer===playerId){$('race-message').textContent=e.text;audio.effect(e.type==='hit'?'crash':e.type);if(e.type==='hit'&&!matchMedia('(prefers-reduced-motion: reduce)').matches)navigator.vibrate?.(35);}lastEvent=Math.max(lastEvent,e.id);}
+  if(me.boosting&&!lastBoosting)audio.effect('boost');
+  lastBoosting=!!me.boosting;
   const recent=race.events.filter(e=>e.racer===playerId&&race.time-e.time<1.7);if(!recent.length)$('race-message').textContent='';
   $('leaderboard').replaceChildren();for(const r of [...race.racers].sort((a,b)=>a.rank-b.rank).slice(0,6)){const row=document.createElement('div');row.className=`rank-row ${r.id===playerId?'me':''}`;const num=document.createElement('b');num.textContent=r.rank;const name=document.createElement('span');name.textContent=r.id===playerId?'你':r.name;const tag=document.createElement('span');tag.textContent=r.finishTime!==null?'FIN':r.bot?'AI':r.id===playerId?'YOU':'P2';row.append(num,name,tag);$('leaderboard').append(row);}
   drawMap();if(race.status==='finished'&&!resultShown)showResult();
@@ -128,7 +130,7 @@ function showResult(){
   $('again').hidden=mode==='lan'&&lobby?.host!==playerId;$('again').textContent=mode==='lan'?'回房间再战':'再跑一场 ↗';$('result-dialog').showModal();audio.effect('finish');
 }
 $('result-dialog').addEventListener('cancel',e=>e.preventDefault());
-let prev=performance.now(),accumulator=0,hudAccum=0,inputAccum=0;
+let prev=performance.now(),accumulator=0,hudAccum=0,inputAccum=0,lastBoosting=false;
 function frame(now){const dt=Math.min(.1,(now-prev)/1000);prev=now;
   if(race&&gameActive){
     const input=controls.read();

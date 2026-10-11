@@ -1,6 +1,6 @@
 import { WORLD, getMap } from './maps.js';
 
-export const NAVIGATION = Object.freeze({cellSize:2,gridSize:25,radius:.48,nodeClearance:.55,maxFieldsPerMap:64});
+export const NAVIGATION = Object.freeze({cellSize:2,gridSize:2*WORLD/2,radius:.48,nodeClearance:.55,maxFieldsPerMap:64});
 const SIZE=NAVIGATION.gridSize,COUNT=SIZE*SIZE,STEP=NAVIGATION.cellSize;
 const caches=new Map();
 const cellIndex=(x,z)=>Math.max(0,Math.min(SIZE-1,Math.floor((z+WORLD)/STEP)))*SIZE+Math.max(0,Math.min(SIZE-1,Math.floor((x+WORLD)/STEP)));

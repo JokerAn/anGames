@@ -10,7 +10,7 @@ const art=new Artwork();
 const STORAGE='windy-trails:v1';
 let rawSave={};try{rawSave=JSON.parse(localStorage.getItem(STORAGE)||'{}');}catch{}
 const saved=normalizeSave(rawSave,LEVEL_COUNT);
-const sound=new Soundscape(saved.sound!==false);
+const sound=new Soundscape(saved.sound!==false);sound.music=saved.music!==false;
 const state={mode:'home',difficulty:'easy',startLevel:0,level:createLevel(0),player:null,camera:0,coins:0,stars:0,ammo:0,projectiles:[],health:3,time:180,elapsed:0,checkpoint:120,particles:[],floaters:[],shake:0,toastTime:0,totalStars:0,levelStartCoins:0,deathTimer:0,winTimer:0};
 const view={width:1280,height:720,dpr:1,portrait:false,offsetY:0};
 const input=new Set(),heldKeys=new Set(),pointers=new Map(),activeKeyCodes=new Map();
@@ -134,11 +134,24 @@ function showWin(){
   openModal({mark:state.stars===3?'✦ ✦ ✦':'✦',eyebrow:last?'UNTIL THE NEXT ADVENTURE':'A LITTLE FURTHER, A LITTLE BRAVER',title:last?'把风景装进口袋':'这一站，满载而归',content:`<p>${last?`你完成了${MODES[state.difficulty].name}模式的这段旅程。<br>${state.startLevel===0?'八座岛屿，都留下了你的足迹。':'新的风景，还在其他岛屿等你。'}`:`${state.level.theme.name}已完成。<br>下一阵风，会带来不一样的风景。`}</p><div class="result-stats"><div><b>${state.coins}</b><span>累计金币</span></div><div><b>${last?`${state.totalStars} / ${(LEVEL_COUNT-state.startLevel)*3}`:`${state.stars} / 3`}</b><span>${last?'旅途星光':'本关星光'}</span></div><div><b>${Math.ceil(state.time)}</b><span>剩余秒数</span></div></div>`,actions:last?[['再来一场冒险',()=>begin(0)],['回到起点',home,true]]:[['前往下一座岛屿 →',()=>begin(state.level.index+1,true)],['重新探索本关',()=>{state.totalStars-=state.stars;retry();},true]]});
 }
 function bumpBlock(b){
-  b.bump=1;sound.play('block');if(b.kind!=='question'||b.used)return;
-  if(b.reward==='ammo'&&state.ammo>=MAX_AMMO){notify('弹药已满 · 稍后再来取这份补给');return;}
+  if(b.broken)return;
+  b.bump=1;sound.play('block');
+  if(b.kind==='brick'){
+    // Bricks shatter under a punch or a shot: they vanish and spit out a coin.
+    b.broken=true;b.hidden=true;state.coins+=2;sound.play('hit');
+    for(let i=0;i<10;i++)particle(b.x+22,b.y+22,'#d8b184',8,90);
+    floating('+2',b.x+22,b.y-10);
+    state.level.solids=state.level.solids.filter(s=>s!==b);
+    return;
+  }
+  if(b.kind!=='question'||b.used)return;
+  const reward=b.reward||'coin';
+  if(reward==='ammo'&&state.ammo>=MAX_AMMO){notify('弹药已满 · 稍后再来取这份补给');return;}
   b.used=true;
-  if(b.reward==='shield'){state.player.shield=1;sound.play('star');notify('获得叶子护盾 · 抵挡一次碰撞');particle(b.x+22,b.y,'#c6deaa',12);floating('叶子护盾',b.x+22,b.y-10,'#f4f8d0');}
-  else if(b.reward==='ammo'){grantAmmo(AMMO_PER_PICKUP[state.difficulty],b.x+22,b.y);}
+  if(reward==='shield'){state.player.shield=1;sound.play('star');notify('获得叶子护盾 · 抵挡一次碰撞');particle(b.x+22,b.y,'#c6deaa',12);floating('叶子护盾',b.x+22,b.y-10,'#f4f8d0');}
+  else if(reward==='ammo'){grantAmmo(AMMO_PER_PICKUP[state.difficulty],b.x+22,b.y);}
+  else if(reward==='star'){state.player.invincible=Math.max(state.player.invincible,8);sound.play('star');notify('无敌星光 · 8 秒内碰不到伤害');particle(b.x+22,b.y,'#fff0aa',16,150);floating('无敌星光',b.x+22,b.y-10,'#fff2b0');}
+  else if(reward==='mushroom'){state.player.scaleUp=Math.max(state.player.scaleUp||0,10);sound.play('star');notify('成长蘑菇 · 10 秒内体型与跳跃增强');particle(b.x+22,b.y,'#ff9c6b',14,130);floating('成长蘑菇',b.x+22,b.y-10,'#ffd9c0');}
   else{state.coins+=3;sound.play('coin');particle(b.x+22,b.y,'#f6d889',10);floating('+3',b.x+22,b.y-10);}
 }
 function grantAmmo(amount,x,y){
@@ -151,17 +164,22 @@ function grantAmmo(amount,x,y){
 function updateShooting(dt){
   const p=state.player,l=state.level;
   const requested=input.has('shoot')||shootQueued;shootQueued=false;
-  if(requested&&state.ammo>0&&p.shotCooldown<=0&&state.projectiles.length<MAX_PROJECTILES){
+  if(requested&&p.shotCooldown<=0&&state.projectiles.length<MAX_PROJECTILES){
     const y=p.y+p.h-(p.crouch?15:23),x=p.x+p.w/2+p.facing*31;
     state.projectiles.push({x,y,originX:p.x+p.w/2,vx:p.facing*BULLET_SPEED,life:BULLET_LIFETIME});
-    state.ammo--;p.shotCooldown=SHOT_COOLDOWN;p.shotFlash=.09;sound.play('shoot');
+    p.shotCooldown=SHOT_COOLDOWN;p.shotFlash=.09;sound.play('shoot');
   }
   if(!state.projectiles.length)return;
   const blockers=l.solids.concat(l.platforms.filter(platform=>platform.hiddenFor<=0));
   for(const hit of advanceProjectiles(state.projectiles,blockers,l.enemies,dt)){
     if(hit.kind==='enemy'){
       state.coins+=2;sound.play('hit');particle(hit.x,hit.y,'#ecc38c',9,120);floating('+2',hit.enemy.x+hit.enemy.w/2,hit.enemy.y);
-    }else{sound.play('block');particle(hit.x,hit.y,'#e9d4a9',3,65);}
+    }else{
+      // A shot that meets a brick shatters it instead of being swallowed.
+      const brick=l.blocks.find(b=>!b.hidden&&b.kind==='brick'&&hit.x>=b.x-4&&hit.x<=b.x+b.w+4&&hit.y>=b.y-4&&hit.y<=b.y+b.h+4);
+      if(brick)bumpBlock(brick);
+      else{sound.play('block');particle(hit.x,hit.y,'#e9d4a9',3,65);}
+    }
   }
 }
 function updatePlatforms(dt,p,l){
@@ -337,7 +355,12 @@ function renderWorld(time){
     if(p.shield){ctx.strokeStyle='#e6f5bfaa';ctx.lineWidth=2;ctx.fillStyle='#e6f5bf16';ctx.beginPath();ctx.ellipse(p.x+16,p.y+25,39,47,0,0,Math.PI*2);ctx.fill();ctx.stroke();}
     const frame=!p.grounded?9:Math.abs(p.vx)>20?Math.floor(p.walk)%8:8;
     if(p.dash>0&&!reduceMotion){art.drawFox(ctx,p.x+16-p.facing*32,p.y+p.h,{frame,facing:p.facing,scale:.8,alpha:.16});art.drawFox(ctx,p.x+16-p.facing*16,p.y+p.h,{frame,facing:p.facing,scale:.8,alpha:.24});}
-    art.drawFox(ctx,p.x+16,p.y+p.h,{frame,facing:p.facing,scale:.8,crouch:p.crouch,alpha:p.invincible>0&&Math.floor(p.invincible*12)%2?.4:1});
+    // Growth mushroom makes the traveler visibly bigger; invincibility gives a glow.
+    const growing=(p.scaleUp||0)>0,size=growing?1.12:.8;
+    if(growing){ctx.save();ctx.shadowColor='#ffb27a';ctx.shadowBlur=18;}
+    art.drawFox(ctx,p.x+16,p.y+p.h,{frame,facing:p.facing,scale:size,crouch:p.crouch,alpha:p.invincible>0&&Math.floor(p.invincible*12)%2?.4:1});
+    if(growing)ctx.restore();
+    if(p.invincible>1.6&&p.shield<=0){ctx.strokeStyle='#fff0aab0';ctx.lineWidth=2;ctx.fillStyle='#fff0aa14';ctx.beginPath();ctx.ellipse(p.x+16,p.y+30,34,42,0,0,Math.PI*2);ctx.fill();ctx.stroke();}
     if(state.ammo>0||p.shotFlash>0)art.blaster(ctx,p.x+16,p.y+p.h-(p.crouch?15:23),p.facing,p.shotFlash>0);
   }
   for(const v of state.particles){ctx.globalAlpha=clamp(v.life/v.max,0,1);ctx.fillStyle=v.color;ctx.fillRect(v.x,v.y,v.size,v.size);}ctx.globalAlpha=1;
@@ -360,7 +383,7 @@ function tick(now){
     else accumulator=0;
     if(animate)updateEffects(dt);
     if(state.mode==='winning'){state.winTimer-=dt;if(state.winTimer<=0)showWin();}
-    sound.update(state.mode==='playing');if(animate||needsRender){render(animationTime);needsRender=false;}
+    sound.update(state.mode==='playing');sound.musicTrack();if(animate||needsRender){render(animationTime);needsRender=false;}
   }
   requestAnimationFrame(tick);
 }
@@ -390,6 +413,35 @@ for(const button of controls){
   button.addEventListener('contextmenu',event=>event.preventDefault());
 }
 const keys={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down',Space:'jump',ShiftLeft:'dash',ShiftRight:'dash',KeyJ:'shoot',KeyF:'shoot'};
+// Analog movement stick replaces the old on-screen D-pad. It feeds the same
+// left/right/up/down actions the D-pad used, so game logic is unchanged. The
+// stick is only active while a finger is on it: lifting the finger clears the
+// direction immediately, so the character cannot keep walking after release.
+const joystick=$('joystick'),joystickKnob=$('joystick-knob');
+let stickId=null,stickAxis=0;
+function setStick(axis){stickAxis=axis;pointers.forEach((action,id)=>{if(action==='left'||action==='right'||action==='up'||action==='down')pointers.delete(id);});if(axis<-.28)pointers.set('stick',axis<-.7?'left':'left');else if(axis>.28)pointers.set('stick','right');else pointers.delete('stick');syncInput();}
+function updateStick(event){
+  const rect=joystick.getBoundingClientRect(),radius=rect.width*.34;
+  let dx=event.clientX-(rect.left+rect.width/2),dy=event.clientY-(rect.top+rect.height/2),len=Math.hypot(dx,dy);
+  if(len>radius){dx=dx/len*radius;dy=dy/len*radius;}
+  joystickKnob.style.transform=`translate(${dx}px,${dy}px)`;
+  const axis=dx/radius;stickAxis=axis;
+  pointers.forEach((action,id)=>{if(id!=='stick'&&(action==='left'||action==='right'||action==='up'||action==='down'))pointers.delete(id);});
+  if(axis<-.24)pointers.set('stick','left');else if(axis>.24)pointers.set('stick','right');else pointers.delete('stick');
+  syncInput();
+}
+function releaseStick(event){
+  if(event.pointerId!==stickId)return;
+  stickId=null;stickAxis=0;pointers.delete('stick');joystickKnob.style.transform='';joystick.classList.remove('active');
+  if(!input.has('left')&&!input.has('right'))jumpBuffer=0;
+  syncInput();
+}
+if(joystick){
+  joystick.addEventListener('pointerdown',event=>{event.preventDefault();if(state.mode!=='playing'||stickId!==null)return;sound.unlock();joystick.setPointerCapture(event.pointerId);stickId=event.pointerId;joystick.classList.add('active');updateStick(event);});
+  joystick.addEventListener('pointermove',event=>{if(event.pointerId===stickId)updateStick(event);});
+  for(const type of ['pointerup','pointercancel','lostpointercapture'])joystick.addEventListener(type,releaseStick);
+  joystick.addEventListener('contextmenu',event=>event.preventDefault());
+}
 window.addEventListener('keydown',event=>{
   if(!$('modal').hidden&&event.code==='Tab'){const focusable=[...$('modal').querySelectorAll('button')];const first=focusable[0],last=focusable.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}return;}
   if(event.code==='Escape'||event.code==='KeyP'){event.preventDefault();if(event.repeat)return;if(state.mode==='playing')pause();else if(state.mode==='paused')resume();else if(state.mode==='home'&&!$('modal').hidden)closeModal();return;}
@@ -401,8 +453,13 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){activeKeyC
 document.querySelectorAll('[data-difficulty]').forEach(button=>button.onclick=()=>{state.difficulty=button.dataset.difficulty;updateDifficultyUI();});
 $('map-button').onclick=showMap;
 $('start-button').onclick=()=>begin(0);$('help-button').onclick=help;$('pause-button').onclick=()=>{if(state.mode==='playing')pause();};
+// Long-press / double-click the note toggles just the background music; a normal
+// tap keeps toggling all sound, so the existing habit still works.
 function updateSoundButton(){$('sound-button').classList.toggle('muted',!sound.enabled);$('sound-button').setAttribute('aria-label',sound.enabled?'关闭声音':'开启声音');$('sound-button').title=sound.enabled?'关闭声音':'开启声音';}
 $('sound-button').onclick=()=>{sound.unlock();saved.sound=sound.toggle();store();updateSoundButton();};updateSoundButton();
+const musicButton=$('music-button');
+function updateMusicButton(){if(!musicButton)return;musicButton.classList.toggle('muted',!sound.music);musicButton.setAttribute('aria-label',sound.music?'关闭背景音乐':'开启背景音乐');musicButton.title=sound.music?'关闭背景音乐':'开启背景音乐';}
+if(musicButton)musicButton.onclick=()=>{sound.unlock();saved.music=sound.toggleMusic();store();updateMusicButton();};updateMusicButton();
 $('fullscreen-button').onclick=async()=>{
   try{if(document.fullscreenElement){await document.exitFullscreen();}else if($('game-shell').requestFullscreen){await $('game-shell').requestFullscreen();}else{notify('可用浏览器「添加到主屏幕」获得沉浸体验');}}catch{notify('当前浏览器未开放全屏，可添加到主屏幕游玩');}
 };

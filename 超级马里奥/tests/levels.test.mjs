@@ -41,7 +41,7 @@ test('hard increases challenge without changing jump physics',()=>{
     assert.equal(hard.maxHealth,2);assert.ok(hard.time<easy.time);
     assert.ok(hard.enemies.length>easy.enemies.length);
     assert.ok(Math.abs(hard.enemies[0].vx)>Math.abs(easy.enemies[0].vx));
-    assert.ok(hard.gaps.every(([a,b],j)=>b-a===easy.gaps[j][1]-easy.gaps[j][0]+(i===0?20:i===1?25:40)));
+    assert.ok(hard.gaps.every(([a,b],j)=>b-a===easy.gaps[j][1]-easy.gaps[j][0]+(i===0?20:i===1?25:32)));
   }
 });
 test('new stages contain distinct playable mechanics',()=>{

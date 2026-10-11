@@ -10,7 +10,7 @@ test('malformed root and nested data always produce usable records',()=>{
   }
 });
 test('valid progress and sound preferences survive unchanged',()=>{
-  const source={sound:false,records:{easy:{bestCoins:123,bestStars:4,levels:{0:{stars:3},1:{stars:0},2:{stars:1}}},hard:{bestCoins:80,bestStars:2,levels:{1:{stars:2}}}}};
+  const source={sound:false,music:false,records:{easy:{bestCoins:123,bestStars:4,levels:{0:{stars:3},1:{stars:0},2:{stars:1}}},hard:{bestCoins:80,bestStars:2,levels:{1:{stars:2}}}}};
   assert.deepEqual(normalizeSave(source,8),source);
 });
 test('star values are finite integers bounded to zero through three',()=>{

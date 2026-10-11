@@ -31,10 +31,14 @@ export function makeCar(id, colorOverride) {
   g.add(flame);flame.visible=false;
   const shield=new THREE.Mesh(new THREE.SphereGeometry(2.4,16,10),new THREE.MeshBasicMaterial({color:'#75fff0',wireframe:true,transparent:true,opacity:.22}));shield.position.y=.8;shield.scale.set(.65,.65,1);g.add(shield);shield.visible=false;
   const shadow=new THREE.Mesh(new THREE.CircleGeometry(1,20),new THREE.MeshBasicMaterial({color:'#081520',transparent:true,opacity:.32,depthWrite:false}));shadow.rotation.x=-Math.PI/2;shadow.scale.set(1.3,2.25,1);shadow.position.y=.045;g.add(shadow);
-  g.userData={flame,shield,cabin};return g;
+  // Dynamic lights: a tail light that flares under braking, and a spill light
+  // under the car so boost reads as real illumination, not just a bright mesh.
+  const brake=new THREE.PointLight('#ff4133',0,9,2);brake.position.set(0,bodyY+.3,-2.1);g.add(brake);
+  const glow=new THREE.PointLight('#5df0ff',0,7,2);glow.position.set(0,.5,-2.3);g.add(glow);
+  g.userData={flame,shield,cabin,brake,glow};return g;
 }
 function strip(track,left,right,height,color,checker=false) {
-  const pos=[],colors=[],indices=[],count=560;
+  const pos=[],colors=[],indices=[],count=track.points?Math.min(1400,track.points.length-1):560;
   for(let i=0;i<=count;i++) {
     for(const lane of [left,right]) {const p=track.sample(i/count*track.length,lane);pos.push(p.x,p.y+height,p.z);const c=new THREE.Color(checker?(Math.floor(i/4)%2?'#eaf4ed':'#ff745a'):color);colors.push(c.r,c.g,c.b);}
     if(i<count) {let n=i*2;indices.push(n,n+2,n+1,n+1,n+2,n+3);}
@@ -62,6 +66,42 @@ export class RaceRenderer {
     this.resizeObserver=new ResizeObserver(()=>this.resize());this.resizeObserver.observe(container);this.resize();
     this.renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();document.dispatchEvent(new CustomEvent('graphics-lost'));});
   }
+  // Scenery is themed per track. Mountains stay where the road opens out, but the
+  // palette and silhouettes differ: a lit night city skyline, a wooded creek pass,
+  // or a neon-drenched cyberpunk sprawl with holographic signs.
+  buildScenery(t,theme,dummy){
+    const count=110;
+    const place=(i)=>{const p=t.sample(i/count*t.length,(i%2?1:-1)*(16+(Math.sin(i*79)*.5+.5)*34));const scale=.7+(Math.sin(i*22)*.5+.5)*1.4;return {p,scale};};
+    if(theme==='coast'){
+      const trunks=new THREE.InstancedMesh(new THREE.CylinderGeometry(.22,.45,5,5),mat('#776c4a'),count);
+      const tops=new THREE.InstancedMesh(new THREE.ConeGeometry(3,2,5),mat('#4b9377'),count);
+      for(let i=0;i<count;i++){const {p,scale}=place(i);
+        dummy.position.set(p.x,p.y+2,p.z);dummy.rotation.set(0,i*1.9,0);dummy.scale.set(1,scale,1);dummy.updateMatrix();trunks.setMatrixAt(i,dummy.matrix);
+        dummy.position.y=p.y+5*scale;dummy.scale.set(scale,scale,scale);dummy.updateMatrix();tops.setMatrixAt(i,dummy.matrix);}
+      this.world.add(trunks,tops);return;
+    }
+    if(theme==='creek'){
+      // Wooded valley: layered pines and low shrubs hug both banks.
+      const trunks=new THREE.InstancedMesh(new THREE.CylinderGeometry(.2,.4,4.4,5),mat('#7a5a3d'),count);
+      const tops=new THREE.InstancedMesh(new THREE.ConeGeometry(3.4,9,6),mat('#3f6f4e'),count);
+      for(let i=0;i<count;i++){const {p,scale}=place(i);
+        dummy.position.set(p.x,p.y+2,p.z);dummy.rotation.set(0,i*1.9,0);dummy.scale.set(1,scale,1);dummy.updateMatrix();trunks.setMatrixAt(i,dummy.matrix);
+        dummy.position.y=p.y+4.4*scale+2.4;dummy.scale.set(scale,scale,scale);dummy.updateMatrix();tops.setMatrixAt(i,dummy.matrix);
+        if(i%3===0)box(this.world,.8,.8,.8,p.x+(i%2?3:-3),p.y+.5,p.z+(i%2?-2:2),'#5c8a4e');}
+      this.world.add(trunks,tops);
+      // A few rocks and a low stone wall along the creek edge.
+      for(let i=0;i<22;i++){const {p,scale}=place((i*5)%count);box(this.world,1.4*scale,1*scale,1.2*scale,p.x*1.06,p.y-.1,p.z*1.06,'#8b8378');}
+      return;
+    }
+    // cyber (= neon): a glowing city skyline with holographic billboards.
+    const towers=new THREE.InstancedMesh(boxGeo,mat('#1b2444'),count);
+    for(let i=0;i<count;i++){const {p,scale}=place(i);const h=10+scale*22;
+      dummy.position.set(p.x,h/2,p.z);dummy.rotation.set(0,i*1.9,0);dummy.scale.set(4+scale*3,h,5+scale*3);dummy.updateMatrix();towers.setMatrixAt(i,dummy.matrix);
+      if(i%2===0){const sign=box(this.world,.16,h*.7,4.4,p.x+3.2,h*.5,p.z,i%4?'#47c9d1':'#aa73fa',true);sign.rotation.y=i*1.9;}
+      if(i%5===0){const beam=new THREE.Mesh(new THREE.CircleGeometry(2,16),mat(i%2?'#61f4ff':'#ff5fd2',true));beam.rotation.x=-Math.PI/2;beam.position.set(p.x,0.6,p.z);this.world.add(beam);}
+    }
+    this.world.add(towers);
+  }
   resize(){const w=Math.max(1,this.container.clientWidth),h=Math.max(1,this.container.clientHeight);this.renderer.setSize(w,h);this.camera.aspect=w/h;this.camera.updateProjectionMatrix();}
   setContainer(container){this.resizeObserver.disconnect();this.container=container;container.append(this.renderer.domElement);this.resizeObserver.observe(container);this.resize();}
   setCar(id){this.garage.remove(this.garageCar);this.disposePrivate(this.garageCar);this.garageCar=makeCar(id);this.garage.add(this.garageCar);}
@@ -70,26 +110,21 @@ export class RaceRenderer {
     if(this.world)this.disposePrivate(this.world);
     this.world=new THREE.Scene();this.track=getTrack(id);const t=this.track,night=id==='neon';
     this.world.background=new THREE.Color(t.sky);this.world.fog=new THREE.Fog(t.sky,110,520);
-    this.world.add(new THREE.HemisphereLight(night?'#a6bcff':'#e2faff',t.ground,night?2.8:2.7));const sun=new THREE.DirectionalLight(night?'#a4b4ff':'#fff0d3',night?2.2:2.7);sun.position.set(100,170,80);this.world.add(sun);
+    const theme=t.theme||(id==='neon'?'cyber':id==='canyon'?'creek':'coast');
+    const dark=theme==='cyber'||night;
+    this.world.add(new THREE.HemisphereLight(dark?'#a6bcff':'#e2faff',t.ground,dark?2.8:2.7));const sun=new THREE.DirectionalLight(dark?'#a4b4ff':'#fff0d3',dark?2.2:2.7);sun.position.set(100,170,80);this.world.add(sun);
     const ground=new THREE.Mesh(new THREE.PlaneGeometry(2400,2400),mat(t.ground));ground.rotation.x=-Math.PI/2;ground.position.y=-.8;this.world.add(ground);
-    if(id==='coast'){const water=new THREE.Mesh(new THREE.PlaneGeometry(2000,2000),mat('#559ea9'));water.rotation.x=-Math.PI/2;water.position.set(-1190,-.65,0);this.world.add(water);}
+    if(theme==='coast'){const water=new THREE.Mesh(new THREE.PlaneGeometry(2000,2000),mat('#559ea9'));water.rotation.x=-Math.PI/2;water.position.set(-1190,-.65,0);this.world.add(water);}
+    if(theme==='creek'){const stream=new THREE.Mesh(new THREE.PlaneGeometry(260,1400),mat('#5f9ec0'));stream.rotation.x=-Math.PI/2;stream.position.set(-260,-.6,0);this.world.add(stream);}
     this.world.add(strip(t,-65,-ROAD_HALF-1.3,-.15,t.ground),strip(t,ROAD_HALF+1.3,65,-.15,t.ground));
     this.world.add(strip(t,-ROAD_HALF-1.3,ROAD_HALF+1.3,-.08,t.ground));this.world.add(strip(t,-ROAD_HALF,ROAD_HALF,.02,t.road));
     this.world.add(strip(t,-ROAD_HALF-.55,-ROAD_HALF,.06,'#ffffff',true),strip(t,ROAD_HALF,ROAD_HALF+.55,.06,'#ffffff',true));
-    this.world.add(strip(t,-ROAD_HALF-.8,-ROAD_HALF-.55,.8,night?'#c198ff':'#a6bdc4'),strip(t,ROAD_HALF+.55,ROAD_HALF+.8,.8,night?'#48dbc5':'#a6bdc4'));
+    const railColor=theme==='cyber'?'#c198ff':theme==='creek'?'#a8815a':'#a6bdc4';
+    this.world.add(strip(t,-ROAD_HALF-.8,-ROAD_HALF-.55,.8,railColor),strip(t,ROAD_HALF+.55,ROAD_HALF+.8,.8,theme==='cyber'?'#48dbc5':railColor));
     const dummy=new THREE.Object3D(),dashCount=Math.floor(t.length/9)*2;
-    const dashes=new THREE.InstancedMesh(boxGeo,mat('#c3d0ca'),dashCount);let n=0;
+    const dashes=new THREE.InstancedMesh(boxGeo,mat(theme==='cyber'?'#7ff0ff':'#c3d0ca'),dashCount);let n=0;
     for(let s=0;s<t.length-9;s+=9) for(const x of [-3,3]) {const p=t.sample(s,x);dummy.position.set(p.x,p.y+.04,p.z);dummy.rotation.set(0,p.yaw,0);dummy.scale.set(.09,.025,3.6);dummy.updateMatrix();dashes.setMatrixAt(n++,dummy.matrix);} dashes.count=n;this.world.add(dashes);
-    const sceneryCount=110;
-    const trunkGeo=night?boxGeo:new THREE.CylinderGeometry(.22,.45,5,5);
-    const trunks=new THREE.InstancedMesh(trunkGeo,mat(night?'#26304f':id==='canyon'?'#99644d':'#776c4a'),sceneryCount);
-    const topGeo=id==='coast'?new THREE.ConeGeometry(3,2,5):new THREE.ConeGeometry(5,13,5);
-    const tops=new THREE.InstancedMesh(topGeo,mat(id==='coast'?'#4b9377':id==='canyon'?'#c98b66':'#484579'),sceneryCount);
-    for(let i=0;i<sceneryCount;i++) {const p=t.sample(i/sceneryCount*t.length,(i%2?1:-1)*(16+(Math.sin(i*79)*.5+.5)*34));const scale=.7+(Math.sin(i*22)*.5+.5)*1.4;
-      dummy.position.set(p.x,night?8*scale:p.y+2,p.z);dummy.rotation.set(0,i*1.9,0);dummy.scale.set(night?5:1,night?16*scale:scale,night?6:1);dummy.updateMatrix();trunks.setMatrixAt(i,dummy.matrix);
-      dummy.position.y=p.y+(id==='coast'?5:5.5)*scale;dummy.scale.set(scale,scale,scale);dummy.updateMatrix();tops.setMatrixAt(i,dummy.matrix);
-      if(night&&i%2===0) {const sign=box(this.world,.16,10*scale,4,p.x+2.6,6*scale,p.z,i%4?'#47c9d1':'#aa73fa',true);sign.rotation.y=i*1.9;}
-    }this.world.add(trunks);if(!night)this.world.add(tops);
+    this.buildScenery(t,theme,dummy);
     this.items=[];
     for(const o of t.objects){const p=t.sample(o.s,o.x);const group=new THREE.Group();group.position.set(p.x,p.y+.1,p.z);group.rotation.y=p.yaw;
       if(o.type==='box') {
@@ -116,7 +151,7 @@ export class RaceRenderer {
     box(gate,.5,7,.5,-10,3.5,0,'#244957');box(gate,.5,7,.5,10,3.5,0,'#244957');box(gate,20.5,2,.6,0,6.5,0,'#173245');
     const banner=textPlane('少年赛车  /  START',18,1.6);banner.position.set(0,6.5,.35);gate.add(banner);const backBanner=textPlane('少年赛车  /  START',18,1.6);backBanner.position.set(0,6.5,-.35);backBanner.rotation.y=Math.PI;gate.add(backBanner);
     for(let row=0;row<2;row++)for(let col=0;col<18;col++)box(gate,1,.025,1,col-8.5,.09,row-.5,(row+col)%2?'#f4f3de':'#1b2b3e');this.world.add(gate);
-    this.cars.clear();this.particles=[];this.lastEvent=0;this.trapMeshes=new Map();this.cameraReady=false;
+    this.cars.clear();this.particles=[];this.lastEvent=0;this.trapMeshes=new Map();this.cameraReady=false;this.shake=0;
   }
   setRace(race){this.mode='race';this.buildTrack(race.trackId);for(const r of race.racers){const m=makeCar(r.car,r.bot?['#ffa261','#6bd7c0','#9aabff','#f5da89','#eb89aa','#75badc'][r.slot]:undefined);this.cars.set(r.id,m);this.world.add(m);}}
   render(race,playerId,dt,time){
@@ -129,6 +164,10 @@ export class RaceRenderer {
       if(!this.cameraReady){m.position.copy(target);m.rotation.y=p.yaw;}else m.position.lerp(target,1-Math.exp(-dt*18));
       let yaw=p.yaw+(r.drifting?r.vx*.065:r.vx*.018);let diff=mod(yaw-m.rotation.y+Math.PI,Math.PI*2)-Math.PI;m.rotation.y+=diff*Math.min(1,dt*15);m.rotation.z=-r.vx*.008;
       m.userData.flame.visible=!!r.boosting;m.userData.flame.scale.set(1,1,.8+Math.sin(time*50)*.2);m.userData.shield.visible=r.shield>0;m.userData.shield.rotation.y=time;
+      // Brake light flares red when the driver lifts/brakes; boost spills cyan.
+      const braking=!r.boosting&&r.input?.throttle===false;
+      if(m.userData.brake)m.userData.brake.intensity+=( (braking?2.6:0)-m.userData.brake.intensity)*Math.min(1,dt*8);
+      if(m.userData.glow)m.userData.glow.intensity+=( (r.boosting?3.2:0)-m.userData.glow.intensity)*Math.min(1,dt*8);
       if(r.drifting&&Math.random()<.45)this.particle(m.position,r.driftCharge>.65?'#57e5f4':'#ffc57b');
     }
     for(const item of this.items) {
@@ -137,10 +176,12 @@ export class RaceRenderer {
     }
     const ids=new Set(race.traps.map(tr=>tr.id));for(const [id,m] of this.trapMeshes)if(!ids.has(id)){this.world.remove(m);m.geometry.dispose();this.trapMeshes.delete(id);}
     for(const tr of race.traps)if(!this.trapMeshes.has(tr.id)){const p=t.sample(tr.s,tr.x),m=new THREE.Mesh(new THREE.CircleGeometry(2.3,16),mat('#443154'));m.rotation.x=-Math.PI/2;m.position.set(p.x,p.y+.12,p.z);this.world.add(m);this.trapMeshes.set(tr.id,m);}
-    for(const e of race.events){if(e.id>this.lastEvent&&e.racer===playerId&&e.type==='hit'){const m=this.cars.get(playerId);if(m)for(let i=0;i<12;i++)this.particle(m.position,'#ffce84',true);}this.lastEvent=Math.max(this.lastEvent,e.id);}
+    for(const e of race.events){if(e.id>this.lastEvent&&e.racer===playerId){const m=this.cars.get(playerId);if(m&&(e.type==='hit'||e.type==='shield')){for(let i=0;i<16;i++)this.particle(m.position,e.type==='shield'?'#75fff0':'#ffce84',true);if(e.type==='hit')this.shake=Math.max(this.shake,.5);}}this.lastEvent=Math.max(this.lastEvent,e.id);}
     for(let i=this.particles.length-1;i>=0;i--){const p=this.particles[i];p.life-=dt;p.mesh.position.addScaledVector(p.vel,dt);p.vel.y-=dt*8;p.mesh.scale.multiplyScalar(.97);if(p.life<=0){this.world.remove(p.mesh);this.particles.splice(i,1);}}
     const carPos=t.sample(me.s,me.x),behind=t.sample(me.s-(me.boosting?15:13),me.x*.5),ahead=t.sample(me.s+15,me.x*.35);
-    const shake=me.hit>0?Math.sin(time*83)*me.hit*.3:0;
+    // Impact shake decays on its own and adds a lateral jolt on top of the hit timer.
+    this.shake*=Math.exp(-dt*4);
+    const shake=(me.hit>0?Math.sin(time*83)*me.hit*.3:0)+Math.sin(time*67)*this.shake*.5;
     const desired=new THREE.Vector3(behind.x+shake,carPos.y+6.3,behind.z);
     if(!this.cameraReady){this.camera.position.copy(desired);this.cameraReady=true;}else this.camera.position.lerp(desired,1-Math.exp(-dt*7));
     this.camera.lookAt(ahead.x,carPos.y+1.5,ahead.z);this.camera.fov+=( (me.boosting?70:58)-this.camera.fov)*Math.min(1,dt*3);this.camera.updateProjectionMatrix();this.renderer.render(this.world,this.camera);

@@ -1,4 +1,4 @@
-import { Match, WEAPONS, MAPS, getMap, aimAngles, defaultConfig, sanitizeConfig, visible, clamp } from './simulation.js';
+import { Match, WEAPONS, MAX_HP, MAPS, getMap, aimAngles, defaultConfig, sanitizeConfig, visible, clamp } from './simulation.js';
 import { ArenaRenderer } from './renderer.js';
 import { GameAudio } from './audio.js';
 import { Controls } from './controls.js';
@@ -138,7 +138,7 @@ function handleEvents(events){
   }
 }
 function updateHud(){if(!state)return;$('#blue-score').textContent=state.score.blue;$('#red-score').textContent=state.score.red;const remaining=Math.max(0,Math.ceil(state.config.duration-state.time));$('#game-time').textContent=`${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,'0')}`;$('#goal-label').textContent=`目标 ${state.config.target}`;
-  const me=state.actors.find(a=>a.id===playerId);if(!me)return;$('#health-value').textContent=Math.ceil(me.hp);$('#health-bar').style.width=`${me.hp}%`;$('#health-bar').style.background=me.hp<35?'#ffcc8c':'#defaab';$('#shield-label').textContent=me.shield>0?'✦ 返场保护':'';$('#current-weapon-name').textContent=WEAPONS[me.weapon].short;$('#respawn-overlay').hidden=me.hp>0||ended;$('#respawn-seconds').textContent=Math.max(1,Math.ceil(me.respawn));
+  const me=state.actors.find(a=>a.id===playerId);if(!me)return;$('#health-value').textContent=Math.ceil(me.hp);$('#health-bar').style.width=`${Math.max(0,me.hp/MAX_HP*100)}%`;$('#health-bar').style.background=me.hp<MAX_HP*.35?'#ffcc8c':'#defaab';$('#shield-label').textContent=me.shield>0?'✦ 返场保护':'';$('#current-weapon-name').textContent=WEAPONS[me.weapon].short;$('#respawn-overlay').hidden=me.hp>0||ended;$('#respawn-seconds').textContent=Math.max(1,Math.ceil(me.respawn));
   const respawning=me.hp<=0;if(respawning&&!lastRespawn)controls.fire=false;lastRespawn=respawning;lastHealth=me.hp;
   $('#connection-label').textContent=mode==='solo'?'单人冒险 · 本地运行':`好友联机 · ${ping} ms`;
   renderer?.minimap($('#minimap'),state,playerId);

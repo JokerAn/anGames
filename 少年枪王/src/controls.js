@@ -48,12 +48,23 @@ export class Controls {
     document.addEventListener('mousedown',e=>{if(!this.active||document.pointerLockElement!==this.zone||e.target!==this.zone)return;if(e.button===0)this.fire=true;});
     document.addEventListener('mouseup',e=>{if(e.button===0&&e.pointerType!=='touch')this.fire=false;});
     this.zone.addEventListener('contextmenu',e=>e.preventDefault());
+    // Stop the browser's swipe-back/swipe-forward and pull-to-refresh gestures
+    // from hijacking a drag that is meant to turn the camera. passive:false is
+    // required so preventDefault actually applies during a touch drag.
+    this.blockGestures=()=>{document.addEventListener('touchmove',e=>{if(this.active&&e.touches.length<3&&e.cancelable)e.preventDefault();},{passive:false});document.addEventListener('gesturestart',e=>e.preventDefault());};
+    this.blockGestures();
     document.addEventListener('pointerlockchange',()=>{if(this.active&&!this.touch&&!document.pointerLockElement)this.onPause();});
-    document.addEventListener('keydown',e=>{if(!this.active)return;if(['KeyW','KeyA','KeyS','KeyD','Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab'].includes(e.code))e.preventDefault();this.keys.add(e.code);if(e.code==='AltLeft'||e.code==='AltRight'){e.preventDefault();this.setFreeLook(true);}if(e.repeat)return;if(e.code==='Escape'){e.preventDefault();e.stopPropagation();this.onPause();}if(e.code==='KeyQ')this.onSwitch();if(/^Digit[1-4]$/.test(e.code))this.onSwitch(Number(e.code.slice(-1))-1);if(e.code==='Space')this.onJump();});
-    document.addEventListener('keyup',e=>{this.keys.delete(e.code);if(e.code==='AltLeft'||e.code==='AltRight'){e.preventDefault();this.setFreeLook(false);}});
+    document.addEventListener('keydown',e=>{if(!this.active)return;if(['KeyW','KeyA','KeyS','KeyD','KeyO','Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab'].includes(e.code))e.preventDefault();this.keys.add(e.code);if(e.code==='AltLeft'||e.code==='AltRight'){e.preventDefault();this.setFreeLook(true);}if(e.code==='KeyO')this.fire=true;if(e.repeat)return;if(e.code==='Escape'){e.preventDefault();e.stopPropagation();this.onPause();}if(e.code==='KeyQ')this.onSwitch();if(/^Digit[1-4]$/.test(e.code))this.onSwitch(Number(e.code.slice(-1))-1);if(e.code==='Space')this.onJump();});
+    document.addEventListener('keyup',e=>{this.keys.delete(e.code);if(e.code==='KeyO')this.fire=false;if(e.code==='AltLeft'||e.code==='AltRight'){e.preventDefault();this.setFreeLook(false);}});
     window.addEventListener('blur',()=>{this.reset();if(this.active)this.onPause();});
     document.addEventListener('visibilitychange',()=>{if(document.hidden){this.reset();if(this.active)this.onPause();}});
   }
   updateStick(e){const rect=this.stick.getBoundingClientRect(),radius=rect.width*.35;let x=e.clientX-(rect.left+rect.width/2),y=e.clientY-(rect.top+rect.height/2),len=Math.hypot(x,y);if(len>radius){x=x/len*radius;y=y/len*radius;}this.moveX=x/radius;this.moveZ=y/radius;this.knob.style.transform=`translate(${x}px,${y}px)`;}
-  input(weapon){if(!this.active)return {yaw:this.yaw,pitch:this.pitch,weapon,viewAspect:this.viewAspect};const down=k=>this.keys.has(k)?1:0;return {moveX:clamp(this.moveX+down('KeyD')-down('KeyA')+down('ArrowRight')-down('ArrowLeft'),-1,1),moveZ:clamp(this.moveZ+down('KeyS')-down('KeyW')+down('ArrowDown')-down('ArrowUp'),-1,1),yaw:this.yaw,pitch:this.pitch,fire:this.fire,jump:this.jump||this.keys.has('Space'),aim:this.aim,sprint:this.keys.has('ShiftLeft'),weapon,viewAspect:this.viewAspect};}
+  input(weapon){if(!this.active)return {yaw:this.yaw,pitch:this.pitch,weapon,viewAspect:this.viewAspect};const down=k=>this.keys.has(k)?1:0;const keyboardX=down('KeyD')-down('KeyA')+down('ArrowRight')-down('ArrowLeft'),keyboardZ=down('KeyS')-down('KeyW')+down('ArrowDown')-down('ArrowUp');
+    // Keyboard and stick are exclusive inputs. Adding the stick offset on top of
+    // keys let a stale (un-released) stick value stick the player walking in one
+    // direction after the finger left the pad, and overflowed the -1..1 range.
+    const useStick=keyboardX===0&&keyboardZ===0;
+    const moveX=clamp(useStick?this.moveX:keyboardX,-1,1),moveZ=clamp(useStick?this.moveZ:keyboardZ,-1,1);
+    return {moveX,moveZ,yaw:this.yaw,pitch:this.pitch,fire:this.fire,jump:this.jump||this.keys.has('Space'),aim:this.aim,sprint:this.keys.has('ShiftLeft'),weapon,viewAspect:this.viewAspect};}
 }

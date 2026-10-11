@@ -4,7 +4,7 @@ const record=value=>value!==null&&typeof value==='object'&&!Array.isArray(value)
 const count=(value,max=Number.MAX_SAFE_INTEGER)=>typeof value==='number'&&Number.isFinite(value)?Math.max(0,Math.min(max,Math.floor(value))):0;
 
 export function normalizeSave(value,levelCount){
-  const source=record(value),records=record(source.records),result={sound:source.sound!==false,records:{}};
+  const source=record(value),records=record(source.records),result={sound:source.sound!==false,music:source.music!==false,records:{}};
   for(const difficulty of ['easy','hard']){
     const mode=record(records[difficulty]),levels=record(mode.levels),clean={
       bestCoins:count(mode.bestCoins??(difficulty==='easy'?source.bestCoins:0)),

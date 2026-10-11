@@ -21,6 +21,7 @@
       <div class="level-pill"><span class="live-dot"></span><span id="level-label">01/08 <i>/</i> 微风原野</span><span class="difficulty-badge" id="difficulty-badge">简单</span></div>
       <div class="utility">
         <button class="icon-button" id="sound-button" aria-label="关闭声音" title="声音"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4V5Zm4 3c3 2 3 6 0 8m3-11c5 4 5 10 0 14"/></svg></button>
+        <button class="icon-button" id="music-button" aria-label="关闭背景音乐" title="背景音乐"><svg viewBox="0 0 24 24"><path d="M9 18V6l10-2v12M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm10-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg></button>
         <button class="icon-button" id="fullscreen-button" aria-label="进入全屏" title="全屏"><svg viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button>
         <button class="icon-button" id="pause-button" aria-label="暂停游戏" title="暂停" disabled><svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg></button>
       </div>
@@ -46,12 +47,10 @@
     <div class="scene-caption" id="scene-caption"><span class="caption-line"></span><div>第一站 · 微风原野<small>THE ADVENTURE STARTS HERE</small></div></div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <div class="controls" id="controls" aria-label="触屏手柄">
-      <div class="direction-pad" role="group" aria-label="方向控制">
-        <div class="pad-ring"></div><div class="pad-center"></div>
-        <button class="direction up" data-action="up" aria-label="向上跳跃"><svg viewBox="0 0 24 24"><path d="m6 15 6-7 6 7"/></svg></button>
-        <button class="direction left" data-action="left" aria-label="向左移动"><svg viewBox="0 0 24 24"><path d="m15 6-7 6 7 6"/></svg></button>
-        <button class="direction right" data-action="right" aria-label="向右移动"><svg viewBox="0 0 24 24"><path d="m9 6 7 6-7 6"/></svg></button>
-        <button class="direction down" data-action="down" aria-label="下蹲或空中下落"><svg viewBox="0 0 24 24"><path d="m6 9 6 7 6-7"/></svg></button>
+      <div class="direction-pad" id="joystick" role="group" aria-label="移动摇杆">
+        <div class="pad-ring"></div><div class="stick-ring"></div>
+        <span class="stick-knob" id="joystick-knob"></span>
+        <span class="pad-hint">移动</span>
       </div>
       <div class="control-hint"><span>跟着风，也跟着自己的节奏</span><small>← → 移动 <i>·</i> SPACE 跳跃 <i>·</i> SHIFT 冲刺 <i>·</i> J 射击</small></div>
       <div class="action-pad"><button class="action shoot empty" data-action="shoot" aria-label="射击，先拾取弹药，长按连发"><svg viewBox="0 0 24 24"><path d="M9 19V8a3 3 0 0 1 6 0v11H9Zm0-4h6M4 9H2m20 0h-2M5 4l-2-2m16 2 2-2"/></svg><span>射击</span><small>J / F</small><b class="shoot-ammo" id="shoot-ammo">0</b></button><button class="action dash" data-action="dash" aria-label="冲刺"><svg viewBox="0 0 24 24"><path d="m13 3-8 11h6l-1 7L20 9h-7l0-6Z"/></svg><span>冲刺</span><small>SHIFT</small></button><button class="action jump" data-action="jump" aria-label="跳跃，长按跳得更高"><svg viewBox="0 0 28 28"><path d="M14 23V5M7 12l7-7 7 7M6 23h16"/></svg><span>跳跃</span><small>SPACE</small></button></div>
