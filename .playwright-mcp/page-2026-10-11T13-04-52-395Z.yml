@@ -1,0 +1,48 @@
+- generic [active]:
+  - text: ＋
+  - generic [ref=e184]:
+    - generic "滑动屏幕转动视角" [ref=e186]
+    - generic:
+      - button "暂停或菜单" [ref=e187] [cursor=pointer]: Ⅱ
+      - generic:
+        - generic:
+          - text: 深蓝
+          - generic: "0"
+        - generic:
+          - text: 4:59
+          - generic: 据点 / 100
+        - generic:
+          - generic: "0"
+          - text: 赤焰
+      - button "关闭声音" [ref=e188] [cursor=pointer]: ♫
+    - generic:
+      - text: ◎ 据点 A · 23m
+      - strong: 装卸通道
+      - text: 进入区域占领 / 49s 轮换
+    - generic:
+      - generic: ● 深蓝小队
+      - generic: 深蓝港区 · 第三人称
+      - generic "小地图"
+      - generic: SOLO / 本地作战
+      - generic: 55 FPS
+    - generic "十字准星"
+    - generic: ✕
+    - generic: ▲
+    - generic: 夺取据点 · 控制区域得分
+    - generic:
+      - generic:
+        - generic: ＋
+        - generic:
+          - generic: 生命 150
+          - generic: 返场保护 · 开火解除
+      - generic:
+        - generic: 体力 100
+        - text: E · 闪避就绪
+      - button "AR-24 脉冲 30/ 30 R 换弹 · Q 切枪" [ref=e189] [cursor=pointer]:
+        - generic [ref=e190]: AR-24 脉冲
+        - strong [ref=e191]: 30/ 30
+        - text: R 换弹 · Q 切枪
+    - generic [ref=e192]:
+      - button "切换第一或第三人称" [ref=e193] [cursor=pointer]: V · 第三人称
+      - button "切换肩侧视角" [ref=e194] [cursor=pointer]: C · 右肩
+    - generic: WASD 移动 · Shift 冲刺 · E 闪避 · R 换弹 · 右键瞄准 · 空格跳跃 · Q / 1–4 切枪 · V 视角 · C 换肩 · Alt 环顾

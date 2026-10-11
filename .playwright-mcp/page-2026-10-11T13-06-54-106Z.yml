@@ -1,0 +1,162 @@
+- generic [ref=f1e2]:
+  - banner [ref=f1e3]:
+    - link "少年枪王 BLASTERS / TACTICAL ARENA" [ref=f1e4] [cursor=pointer]:
+      - /url: /
+      - generic [ref=f1e5]:
+        - text: 少年枪王
+        - generic [ref=f1e6]: BLASTERS / TACTICAL ARENA
+    - navigation [ref=f1e7]:
+      - generic [ref=f1e8]: 作战大厅
+      - button "战术手册 ↗" [ref=f1e9] [cursor=pointer]
+    - generic [ref=f1e10]:
+      - generic [ref=f1e12]: 系统就绪
+      - button "关闭声音" [ref=f1e13] [cursor=pointer]: ♫
+      - button "游戏设置" [ref=f1e14] [cursor=pointer]: ⚙
+  - main [ref=f1e15]:
+    - generic [ref=f1e16]:
+      - generic [ref=f1e17]:
+        - generic [ref=f1e18]: SEASON 02 · BREAK THE LINE
+        - heading "精准出击。掌控战场。" [level=1] [ref=f1e20]
+        - paragraph [ref=f1e21]: 每一发都算数。选好装备，和你的小队突破下一道防线。
+      - generic [ref=f1e22]:
+        - generic [ref=f1e23]: "02"
+        - generic [ref=f1e24]:
+          - text: 战术竞技场
+          - generic [ref=f1e25]: 轮换据点 / 弹匣管理 / 方向闪避
+    - generic [ref=f1e26]:
+      - generic [ref=f1e27]:
+        - generic [ref=f1e28]:
+          - generic [ref=f1e29]: LIVE ARENA
+          - generic [ref=f1e31]: TACTICAL / 03 SECTORS
+        - generic:
+          - text: 部署区域 / DEPLOYMENT
+          - heading "深蓝港区" [level=2]
+          - paragraph: 暮色下的集装箱战场。控住通道，抢占先机。
+        - generic "深蓝港区 3D 竞技场预览" [ref=f1e32]
+        - generic:
+          - generic: UNIT 01
+          - strong: 先锋
+          - generic: ASSAULT OPERATOR
+          - generic: ＋
+        - group "选择对局地图" [ref=f1e34]:
+          - button "01 霓虹前哨 城市 / 多线交锋 ↗" [ref=f1e35] [cursor=pointer]:
+            - generic [ref=f1e36]: "01"
+            - generic [ref=f1e37]:
+              - strong [ref=f1e38]: 霓虹前哨
+              - generic [ref=f1e39]: 城市 / 多线交锋
+            - generic [ref=f1e40]: ↗
+          - button "02 深蓝港区 港口 / 侧翼突袭 ✓" [pressed] [ref=f1e41] [cursor=pointer]:
+            - generic [ref=f1e42]: "02"
+            - generic [ref=f1e43]:
+              - strong [ref=f1e44]: 深蓝港区
+              - generic [ref=f1e45]: 港口 / 侧翼突袭
+            - generic [ref=f1e46]: ✓
+          - button "03 落日遗迹 荒漠 / 远近博弈 ↗" [ref=f1e47] [cursor=pointer]:
+            - generic [ref=f1e48]: "03"
+            - generic [ref=f1e49]:
+              - strong [ref=f1e50]: 落日遗迹
+              - generic [ref=f1e51]: 荒漠 / 远近博弈
+            - generic [ref=f1e52]: ↗
+        - generic [ref=f1e53]:
+          - generic [ref=f1e54]:
+            - generic [ref=f1e55]: ◎
+            - generic [ref=f1e56]:
+              - strong [ref=f1e57]: 寻找掩体。控制节奏。赢下据点。
+              - generic [ref=f1e58]: 港口 / 侧翼突袭 / 双视角
+          - generic [ref=f1e59]: 02 / 03
+      - complementary [ref=f1e60]:
+        - generic [ref=f1e61]:
+          - heading "作战部署" [level=2] [ref=f1e62]
+          - generic [ref=f1e63]: DEPLOY / 01
+        - group "游戏模式" [ref=f1e64]:
+          - button "单人作战" [ref=f1e65] [cursor=pointer]
+          - button "好友联机" [ref=f1e66] [cursor=pointer]
+        - paragraph [ref=f1e67]: 与 AI 小队协同推进，在实战中磨练枪法。
+        - generic [ref=f1e68]:
+          - generic [ref=f1e69]:
+            - text: 呼号
+            - textbox "你的昵称" [ref=f1e70]: 先锋01
+          - generic [ref=f1e71]:
+            - text: 阵营
+            - combobox "加入队伍" [ref=f1e72] [cursor=pointer]:
+              - option "● 深蓝小队" [selected]
+              - option "● 赤焰小队"
+        - generic [ref=f1e73]:
+          - generic [ref=f1e74]:
+            - text: 作战规则
+            - combobox "作战规则" [ref=f1e75] [cursor=pointer]:
+              - option "轮换据点 · 控制区域得分" [selected]
+              - option "团队歼灭 · 击败敌人得分"
+          - generic [ref=f1e76]: 占领约 3 秒 / 每秒 +1 / 50 秒轮换
+        - generic [ref=f1e77]:
+          - heading "小队编成" [level=3] [ref=f1e78]
+          - button "配置人机 ↗" [ref=f1e79] [cursor=pointer]
+        - generic [ref=f1e80]:
+          - generic [ref=f1e81] [cursor=pointer]:
+            - generic [ref=f1e82]: ♟
+            - strong [ref=f1e83]: 你 · 蓝队
+          - generic [ref=f1e84] [cursor=pointer]:
+            - generic [ref=f1e85]: ▣
+            - strong [ref=f1e86]: 老兵队员 1
+          - generic [ref=f1e87] [cursor=pointer]:
+            - generic [ref=f1e88]: ▣
+            - strong [ref=f1e89]: 标准队员 2
+        - generic [ref=f1e90]:
+          - generic [ref=f1e91]: 敌方阵容
+          - strong [ref=f1e92]: 2 标准 + 1 老兵
+          - button "配置对手" [ref=f1e93] [cursor=pointer]: ›
+        - generic [ref=f1e94]:
+          - generic [ref=f1e95]:
+            - text: 作战时限
+            - combobox "作战时限" [ref=f1e96] [cursor=pointer]:
+              - option "2 分钟"
+              - option "3 分钟"
+              - option "5 分钟" [selected]
+              - option "10 分钟"
+          - generic [ref=f1e97]:
+            - text: 胜利分数
+            - combobox "胜利分数" [ref=f1e98] [cursor=pointer]:
+              - option "10 分"
+              - option "30 分"
+              - option "50 分"
+              - option "100 分" [selected]
+        - button "部署作战 ↗" [ref=f1e99] [cursor=pointer]:
+          - generic [ref=f1e100]: 部署作战
+          - generic [ref=f1e101]: ↗
+        - paragraph [ref=f1e102]: WASD 移动 · E 闪避 · R 换弹 · V 切换视角
+      - generic [ref=f1e103]:
+        - generic [ref=f1e104]:
+          - generic [ref=f1e105]:
+            - generic [ref=f1e106]: ⌁
+            - heading "武器库" [level=2] [ref=f1e107]
+            - generic [ref=f1e108]: LOADOUT / CHOOSE YOUR APPROACH
+          - button "⇄ 随机配装" [ref=f1e109] [cursor=pointer]
+        - generic [ref=f1e110]:
+          - button "ASSAULT / 中距 ● AR-24 脉冲 中距压制 · 30 发 / 1.65s 换弹" [pressed] [ref=f1e111] [cursor=pointer]:
+            - text: ASSAULT / 中距
+            - generic [ref=f1e112]: ●
+            - heading "AR-24 脉冲" [level=3] [ref=f1e123]
+            - paragraph [ref=f1e124]: 中距压制 · 30 发 / 1.65s 换弹
+          - button [ref=f1e127] [cursor=pointer]:
+            - text: SMG / 突入
+            - heading "VX-9 疾风" [level=3] [ref=f1e138]
+            - paragraph [ref=f1e139]: 高速突入 · 36 发 / 1.35s 换弹
+          - button [ref=f1e142] [cursor=pointer]:
+            - text: SHOTGUN / 近距
+            - heading "SG-8 破阵" [level=3] [ref=f1e154]
+            - paragraph [ref=f1e155]: 贴身爆发 · 8 发 / 2.25s 换弹
+          - button [ref=f1e158] [cursor=pointer]:
+            - text: SNIPER / 远距
+            - heading "SR-7 长弓" [level=3] [ref=f1e170]
+            - paragraph [ref=f1e171]: 远距精确 · 5 发 / 2.6s 换弹
+      - generic [ref=f1e174]:
+        - generic [ref=f1e175]: ↗
+        - generic [ref=f1e176]:
+          - generic [ref=f1e177]: CO-OP / LOCAL NETWORK
+          - strong [ref=f1e178]: 把后背交给队友。
+          - paragraph [ref=f1e179]: 同一网络，一起推进。并肩夺点，或组队对抗。
+        - button "体验好友联机" [ref=f1e180] [cursor=pointer]: ↗
+        - text: ＋
+    - generic [ref=f1e181]:
+      - generic [ref=f1e182]: 少年枪王 / TACTICAL ARENA · V2.0
+      - generic [ref=f1e183]: 移动端与桌面端均可作战 ●

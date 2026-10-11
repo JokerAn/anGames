@@ -16,7 +16,8 @@ export function createGameServer(){
       const pathname=decodeURIComponent(new URL(req.url,'http://localhost').pathname);
       if(pathname==='/api/network'){res.setHeader('Content-Type',MIME['.json']);res.end(JSON.stringify({addresses:lanAddresses(server.address().port)}));return;}
       let file=pathname==='/'?'index.html':pathname.slice(1);
-      if(file.startsWith('vendor/'))file='node_modules/three/build/'+file.slice(7);
+      if(file.startsWith('vendor/addons/'))file='node_modules/three/examples/jsm/'+file.slice(14);
+      else if(file.startsWith('vendor/'))file='node_modules/three/build/'+file.slice(7);
       else if(!['index.html','style.css'].includes(file)&&!file.startsWith('src/')&&!file.startsWith('assets/')){res.writeHead(404);res.end('Not found');return;}
       const resolved=path.resolve(ROOT,file);
       if(!resolved.startsWith(ROOT+path.sep)||file.includes('..')){res.writeHead(403);res.end();return;}
@@ -89,5 +90,5 @@ export function createGameServer(){
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   const app=createGameServer(),port=Number(process.env.PORT)||3000;
   app.server.on('error',e=>{console.error(e.code==='EADDRINUSE'?`端口 ${port} 已被占用。请运行 PORT=3001 npm start`:e.message);process.exit(1);});
-  app.server.listen(port,'0.0.0.0',()=>{console.log(`\n  少年枪王 · 泡泡竞技场\n  电脑打开：http://localhost:${port}\n  同一 Wi-Fi 的手机打开：\n${lanAddresses(port).map(a=>'  '+a).join('\n')}\n\n  保持这个窗口打开，按 Ctrl+C 停止。\n`);});
+  app.server.listen(port,'0.0.0.0',()=>{console.log(`\n  少年枪王 · 战术竞技场\n  电脑打开：http://localhost:${port}\n  同一 Wi-Fi 的手机打开：\n${lanAddresses(port).map(a=>'  '+a).join('\n')}\n\n  保持这个窗口打开，按 Ctrl+C 停止。\n`);});
 }

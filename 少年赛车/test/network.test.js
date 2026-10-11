@@ -13,14 +13,14 @@ test('双人房间完整流程、隔离、满员、权限、断线接管与清�
     const make=async()=>{const c=new Client(url);clients.push(c);c.id=(await c.wait('welcome')).id;return c;};
     const a=await make(),b=await make(),c=await make();
     a.send({type:'join',room:'bad'});assert.match((await a.wait('error')).message,/4–8/);
-    a.send({type:'join',room:'2026',name:'车手A',track:'canyon',car:'titan',laps:2});await a.wait('lobby');
-    b.send({type:'join',room:'2026',name:'车手B',track:'neon',car:'bolt'});const lobby=await b.wait('lobby');assert.equal(lobby.players.length,2);assert.equal(lobby.track,'canyon');assert.equal(lobby.host,a.id);
+    a.send({type:'join',room:'2026',name:'车手A',track:'canyon',car:'titan',laps:2,rules:'arcade'});await a.wait('lobby');
+    b.send({type:'join',room:'2026',name:'车手B',track:'neon',car:'bolt'});const lobby=await b.wait('lobby');assert.equal(lobby.players.length,2);assert.equal(lobby.track,'canyon');assert.equal(lobby.rules,'arcade');assert.equal(lobby.host,a.id);
     c.send({type:'join',room:'2026'});assert.match((await c.wait('error')).message,/已满/);
     c.send({type:'join',room:'7777'});await c.wait('lobby');assert.equal(app.rooms.size,2);
     a.send({type:'start'});assert.match((await a.wait('error')).message,/准备/);
     a.send({type:'ready',ready:true});b.send({type:'ready',ready:true});await a.wait('lobby',m=>m.players.every(p=>p.ready));
     b.send({type:'start'});await new Promise(r=>setTimeout(r,40));assert.equal(app.rooms.get('2026').race,null);
-    a.send({type:'start'});const ar=await a.wait('race'),br=await b.wait('race');assert.deepEqual(ar.state,br.state);assert.equal(ar.state.racers.filter(r=>!r.bot).length,2);assert.equal(ar.state.racers[0].car,'titan');assert.equal(ar.state.racers[1].car,'bolt');
+    a.send({type:'start'});const ar=await a.wait('race'),br=await b.wait('race');assert.deepEqual(ar.state,br.state);assert.equal(ar.state.rules,'arcade');assert.equal(ar.state.racers.filter(r=>!r.bot).length,2);assert.equal(ar.state.racers[0].car,'titan');assert.equal(ar.state.racers[1].car,'bolt');
     a.send({type:'input',input:{steer:999,throttle:true,s:9999999}});await new Promise(r=>setTimeout(r,60));assert.equal(app.rooms.get('2026').race.racers[0].input.steer,1);assert.ok(app.rooms.get('2026').race.racers[0].s<0);
     assert.equal(c.messages.filter(m=>m.type==='state'||m.type==='race').length,0);
     b.ws.close();await a.wait('notice');assert.equal(app.rooms.get('2026').race.racers.find(r=>r.id===b.id).bot,true);
@@ -43,7 +43,7 @@ test('异常昵称不会制造无法清理的空房间',{timeout:6000},async()=>
   const app=createGameServer();await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const c=new Client(`ws://127.0.0.1:${app.server.address().port}`);
   try{
     await c.wait('welcome');c.send({type:'join',room:'9876',name:{toString:null}});
-    const room=await c.wait('lobby');assert.equal(room.players[0].name,'少年车手');assert.equal(app.rooms.size,1);
+    const room=await c.wait('lobby');assert.equal(room.rules,'circuit');assert.equal(room.players[0].name,'少年车手');assert.equal(app.rooms.size,1);
     c.ws.close();const until=Date.now()+2000;while(app.rooms.size&&Date.now()<until)await new Promise(r=>setTimeout(r,10));assert.equal(app.rooms.size,0);
   }finally{c.ws.terminate();await app.close();}
 });

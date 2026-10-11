@@ -26,7 +26,7 @@ export function createGameServer() {
   const wss = new WebSocketServer({server, maxPayload: 4096});
   const send = (ws,data) => {if(ws.readyState===WebSocket.OPEN && ws.bufferedAmount < 256000) ws.send(JSON.stringify(data));};
   const broadcast = (room,data) => room.players.forEach(p=>send(p.ws,data));
-  function lobby(room) {broadcast(room,{type:'lobby',room:room.code,host:room.host,track:room.track,laps:room.laps,difficulty:room.difficulty,players:room.players.map(({ws,...p})=>p)});}
+  function lobby(room) {broadcast(room,{type:'lobby',room:room.code,host:room.host,track:room.track,laps:room.laps,difficulty:room.difficulty,rules:room.rules,players:room.players.map(({ws,...p})=>p)});}
   function leave(client) {
     const room = rooms.get(client.room); client.room = null;
     if (!room) return;
@@ -52,7 +52,7 @@ export function createGameServer() {
           if(room?.players.length>=2) return send(ws,{type:'error',message:'房间已满（最多两名玩家）。'});
           if(!room&&rooms.size>=100) return send(ws,{type:'error',message:'房间数量已满，请稍后再试。'});
           leave(client);
-          if(!room) {room={code,host:client.id,track:TRACKS.some(t=>t.id===data.track)?data.track:'coast',laps:data.laps===2?2:3,difficulty:data.difficulty==='easy'?'easy':'normal',players:[],race:null};rooms.set(code,room);}
+          if(!room) {room={code,host:client.id,track:TRACKS.some(t=>t.id===data.track)?data.track:'coast',laps:data.laps===2?2:3,difficulty:data.difficulty==='easy'?'easy':'normal',rules:data.rules==='arcade'?'arcade':'circuit',players:[],race:null};rooms.set(code,room);}
           room.players.push({id:client.id,...cleanChoice(data),ready:false,ws}); client.room=code; lobby(room); return;
         }
         const room=rooms.get(client.room); if(!room) return;
@@ -60,7 +60,7 @@ export function createGameServer() {
         if(data.type==='ready'&&!room.race) {room.players.find(p=>p.id===client.id).ready=!!data.ready;lobby(room);}
         if(data.type==='start'&&!room.race&&room.host===client.id) {
           if(room.players.length!==2||!room.players.every(p=>p.ready)) return send(ws,{type:'error',message:'两位车手准备后，房主才能发车。'});
-          room.race=createRace({track:room.track,laps:room.laps,difficulty:room.difficulty,players:room.players});
+          room.race=createRace({track:room.track,laps:room.laps,difficulty:room.difficulty,rules:room.rules,players:room.players});
           broadcast(room,{type:'race',state:snapshot(room.race)});
         }
         if(data.type==='input'&&room.race) {

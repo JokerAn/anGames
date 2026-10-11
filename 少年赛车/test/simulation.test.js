@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRace,stepRace,cleanChoice,cleanInput,snapshot} from '../src/simulation.js';
 import {getTrack,TRACKS} from '../src/tracks.js';
-function active(){const r=createRace({laps:2});r.time=0;return r;}
+function active(){const r=createRace({laps:2,rules:'arcade'});r.time=0;return r;}
 function advance(r,seconds){for(let i=0;i<seconds*60;i++)stepRace(r,1/60);}
 test('赛道闭合，采样和弯率有限，三条路线不同',()=>{
   const lengths=[];
@@ -41,7 +41,7 @@ for(const track of TRACKS)test(`${track.name}：六个人机可完赛、无非�
 });
 
 function pickupRace(track='coast',players=[{id:'local'}]) {
-  const race=createRace({track,players});race.time=1;
+  const race=createRace({track,players,rules:'arcade'});race.time=1;
   // Isolate pickups from traffic collisions; full-race AI checks above still cover traffic.
   race.racers.filter(r=>r.bot).forEach(r=>r.finishTime=0);
   return race;
@@ -97,9 +97,9 @@ test('氮气耗尽后按住不会免费触发加速，松开后才能恢复',()=
   for(let i=0;i<60;i++){stepRace(race,1/60);assert.equal(me.boosting,false);assert.equal(me.nitro,0);}
   me.input={};advance(race,.2);assert.ok(me.nitro>0);
 });
-test('加速带不会缩短已有超级氮气的持续时间',()=>{
-  const race=pickupRace(),me=race.racers[0],pad=getTrack(race.trackId).objects.find(o=>o.type==='boost');me.s=pad.s;me.x=pad.x;me.boost=3;me.v=20;
-  stepRace(race,1/60);assert.ok(me.boost>2.9);
+test('加速带不会缩短已有更长加速的持续时间',()=>{
+  const race=pickupRace(),me=race.racers[0],pad=getTrack(race.trackId).objects.find(o=>o.type==='boost');me.s=pad.s;me.x=pad.x;me.boost=5;me.v=20;
+  stepRace(race,1/60);assert.ok(me.boost>4.9);
 });
 test('护盾连续擦墙不会每帧刷屏，也不会产生受伤闪烁',()=>{
   const race=pickupRace(),me=race.racers[0];me.s=20;me.x=8;me.v=20;me.shield=5;me.input={steer:1};advance(race,1);

@@ -12,7 +12,7 @@ test('enemy bots prioritize a real player over a closer bot firefight',()=>{
 });
 test('taking a hit records its source and triggers retaliation',()=>{
   const {match,human,bot}=duel();match.addHuman({id:'near',team:'blue',weapon:'blaster'});const second=match.actors.find(a=>a.id==='near');Object.assign(second,{x:44,z:8,shield:0});
-  Object.assign(human,aimAngles(human,{x:bot.x,y:1.12,z:bot.z}));match.shoot(human,false);assert.equal(bot.lastAttacker,human.id);bot.thinkTime=0;match.ai(bot,1/60);assert.equal(bot.targetId,human.id);
+  Object.assign(human,aimAngles(human,{x:bot.x,y:.9,z:bot.z}));match.random=()=>.5;match.shoot(human,false);assert.equal(bot.lastAttacker,human.id);bot.thinkTime=0;match.ai(bot,1/60);assert.equal(bot.targetId,human.id);
 });
 test('both AI difficulties can actually damage a real player with all four weapons',()=>{
   for(const difficulty of ['easy','hard'])for(const weapon of Object.keys(WEAPONS)){
@@ -42,7 +42,7 @@ test('reticle and muzzle stay aligned across phone portrait, landscape and deskt
     const {match,human,bot}=duel();Object.assign(human,{x:44,z:40,viewAspect});Object.assign(bot,{x:44,z:40-distance,hp:MAX_HP});
     Object.assign(human,aimAngles(human,{x:bot.x,y:1.2,z:bot.z},aim));const camera=cameraPose(human,human.yaw,human.pitch,aim,'blocks');
     assert.equal(traceRay(camera,viewDirection(human.yaw,human.pitch),60,match.actors,human,'blocks').victim?.id,bot.id);
-    match.random=()=>.5;match.shoot(human,aim);assert.equal(bot.hp,MAX_HP-44,`${viewAspect}/${aim}/${distance}`);
+    match.random=()=>.5;match.shoot(human,aim);assert.equal(bot.hp,MAX_HP-22,`${viewAspect}/${aim}/${distance}`);
   }
   assert.equal(sanitizeInput({viewAspect:99}).viewAspect,3);assert.equal(sanitizeInput({viewAspect:-9}).viewAspect,.4);
 });

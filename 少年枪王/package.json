@@ -1,10 +1,25 @@
 {
   "name": "junior-blasters",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "少年枪王 · 手机优先的亲子泡泡射击竞技场",
-  "scripts": { "start": "node server.js", "dev": "node --watch server.js", "test": "node --test test/*.test.js", "bench": "node test/benchmark-navigation.mjs", "check": "node --check server.js && node --check src/game.js && node --check src/renderer.js && node --check src/navigation.js && node --check src/maps.js && node --check src/simulation.js && node --check src/audio.js && node --check src/controls.js" },
-  "engines": { "node": ">=20" },
-  "dependencies": { "three": "0.186.1", "ws": "8.18.3" }
+  "description": "少年枪王 · 双视角战术竞技场与局域网据点争夺",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test test/*.test.js",
+    "bench": "node test/benchmark-navigation.mjs",
+    "check": "node --check server.js && node --check src/game.js && node --check src/renderer.js && node --check src/navigation.js && node --check src/maps.js && node --check src/simulation.js && node --check src/audio.js && node --check src/controls.js",
+    "test:browser": "node test/browser-tactical.cjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "three": "0.186.1",
+    "ws": "8.18.3"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
 }

@@ -34,7 +34,7 @@ function installFakeSocket(){
   await p.evaluate(async()=>{
    const socket=testSockets.at(-1);socket.open();socket.emit({type:'welcome',id:'me'});
    window.testLobby={type:'lobby',room:'3456',host:'me',track:'coast',laps:2,difficulty:'easy',players:[{id:'me',name:'我',car:'comet',engine:'balanced',ready:true},{id:'peer',name:'朋友',car:'bolt',engine:'balanced',ready:true}]};socket.emit(testLobby);
-   const {createRace}=await import('/src/simulation.js');window.testRace=createRace({laps:2,players:[{id:'me'},{id:'peer'}]});testRace.time=1;testRace.status='racing';testRace.racers[0].item='shield';socket.emit({type:'race',state:testRace});
+   const {createRace}=await import('/src/simulation.js');window.testRace=createRace({laps:2,rules:'arcade',players:[{id:'me'},{id:'peer'}]});testRace.time=1;testRace.status='racing';testRace.racers[0].item='shield';socket.emit({type:'race',state:testRace});
   });
   await p.waitForTimeout(100);
   await p.evaluate(()=>{window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyE',bubbles:true}));window.dispatchEvent(new KeyboardEvent('keyup',{code:'KeyE',bubbles:true}));});
@@ -51,7 +51,7 @@ function installFakeSocket(){
   console.log('PASS room acknowledgement timeout recovers the start button');await first.close();
 
   const {page:a,context:ca}=await pageIn(),{page:b,context:cb}=await pageIn();const code=String(Date.now()).slice(-8);
-  for(const [page,name] of [[a,'审查A'],[b,'审查B']]){await page.locator('[data-mode="lan"]').tap();await page.locator('#nickname').fill(name);await page.locator('#room-code').fill(code);await page.locator('#start').tap();await page.locator('#room-dialog').waitFor({state:'visible'});}
+  for(const [page,name] of [[a,'审查A'],[b,'审查B']]){await page.locator('#rules').selectOption('arcade');await page.locator('[data-mode="lan"]').tap();await page.locator('#nickname').fill(name);await page.locator('#room-code').fill(code);await page.locator('#start').tap();await page.locator('#room-dialog').waitFor({state:'visible'});}
   await a.locator('#ready').tap();await b.locator('#ready').tap();await a.waitForFunction(()=>!document.getElementById('room-start').disabled);await a.locator('#room-start').tap();await a.waitForTimeout(3400);
   let key='',acquired=false;
   for(let i=0;i<100;i++){
@@ -68,9 +68,9 @@ function installFakeSocket(){
   const {page:renderPage,context:rc}=await pageIn();
   const orientations=await renderPage.evaluate(async()=>{
    const {RaceRenderer}=await import('/src/renderer.js'),{createRace}=await import('/src/simulation.js'),{getTrack,TRACKS}=await import('/src/tracks.js'),THREE=await import('/vendor/three.module.js');
-   const container=document.createElement('div');container.style.cssText='position:fixed;inset:0';document.body.append(container);const view=new RaceRenderer(container),out=[];
+   const container=document.createElement('div');container.style.cssText='position:fixed;inset:0';document.body.append(container);const view=new RaceRenderer(container),out=[];let renderTime=1;
    for(const track of TRACKS){const state=createRace({track:track.id}),me=state.racers[0];me.s=70;view.setRace(state);
-    for(const vx of [3,-3]){me.vx=vx;for(let i=0;i<60;i++)view.render(state,me.id,1/60,i/60);const pose=getTrack(track.id).sample(me.s),forward=new THREE.Vector3(0,0,1).applyQuaternion(view.cars.get(me.id).quaternion);out.push({track:track.id,vx,lateralHeading:forward.x*pose.nx+forward.z*pose.nz});}
+    for(const vx of [3,-3]){me.vx=vx;for(let i=0;i<60;i++)view.render(state,me.id,1/60,renderTime+=1/60);const pose=getTrack(track.id).sample(me.s),forward=new THREE.Vector3(0,0,1).applyQuaternion(view.cars.get(me.id).quaternion);out.push({track:track.id,vx,lateralHeading:forward.x*pose.nx+forward.z*pose.nz});}
    }return out;
   });
   for(const o of orientations)assert.equal(Math.sign(o.lateralHeading),Math.sign(o.vx),JSON.stringify(o));console.log('PASS vehicle heading matches sideways steering on all three tracks');await rc.close();

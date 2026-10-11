@@ -64,7 +64,7 @@ test('an enemy flanks low cover instead of stopping forever on the wrong side',(
   assert.ok(flanked,`stuck at ${bot.x},${bot.z}`);
 });
 test('goal changes and defeated targets promptly refresh the selected navigation goal',()=>{
-  const m=new Match({...defaultConfig(),bots:{blue:[],red:[{difficulty:'easy',weapon:'shotgun'}]}},[{id:'a',team:'blue',weapon:'blaster'},{id:'b',team:'blue',weapon:'blaster'}],()=>.5);
+  const m=new Match({...defaultConfig(),rules:'elimination',map:'blocks',bots:{blue:[],red:[{difficulty:'easy',weapon:'shotgun'}]}},[{id:'a',team:'blue',weapon:'blaster'},{id:'b',team:'blue',weapon:'blaster'}],()=>.5);
   const bot=m.actors.find(a=>a.bot),a=m.actors.find(x=>x.id==='a'),b=m.actors.find(x=>x.id==='b');Object.assign(bot,{x:0,z:40});Object.assign(a,{x:0,z:-40});Object.assign(b,{x:0,z:-42});m.step(1/60);
   assert.equal(bot.targetId,'a');const firstGoal=bot.routeGoal;a.x=2;m.step(1/60);assert.notEqual(bot.routeGoal,firstGoal);
   a.hp=0;a.respawn=3;m.step(1/60);assert.equal(bot.targetId,'b');

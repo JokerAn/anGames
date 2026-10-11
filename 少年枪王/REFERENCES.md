@@ -37,3 +37,13 @@
 - CrossFire 官方社区关于十字、中心点与颜色的讨论：https://forum.z8games.com/discussion/comment/6258686/
 
 本次仅参考经典绿色细线十字的视觉思路，准星由本项目 CSS 独立绘制，未使用 CF 图片或其他游戏资源。
+
+## 战术竞技场 2.0（2026-10-11）
+
+本次后期管线参考 Three.js 官方 `EffectComposer`、`UnrealBloomPass` 与后期处理说明。场景、程序纹理、模型与界面仍由本项目编写。
+
+- Three.js 后期处理：https://threejs.org/manual/pages/post-processing.html
+- Three.js EffectComposer：https://threejs.org/docs/pages/EffectComposer.html
+- Three.js UnrealBloomPass：https://threejs.org/docs/pages/UnrealBloomPass.html
+
+浏览器开发验证依赖 Playwright 1.62.1（Apache-2.0），不作为游戏运行依赖。

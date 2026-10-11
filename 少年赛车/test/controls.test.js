@@ -5,7 +5,7 @@ import {createRace,stepRace,cleanInput} from '../src/simulation.js';
 function fixture(t) {
   const oldWindow=globalThis.window,oldDocument=globalThis.document;
   const win=new EventTarget(),doc=new EventTarget();doc.hidden=false;
-  const buttons=Object.fromEntries(['left','right','item','drift','nitro'].map(name=>{
+  const buttons=Object.fromEntries(['left','right','item','drift','nitro','brake'].map(name=>{
     const button=new EventTarget(),classes=new Set();button.dataset={control:name};button.classList={add:v=>classes.add(v),remove:v=>classes.delete(v),contains:v=>classes.has(v)};button.setPointerCapture=()=>{};return [name,button];
   }));
   doc.querySelectorAll=()=>Object.values(buttons);globalThis.window=win;globalThis.document=doc;
@@ -31,4 +31,12 @@ test('手机短按道具不会丢失，多指操作和失去焦点均能正确�
 test('键盘自动重复不重复记为点击；隐藏页面停止自动油门',t=>{
   const {controls,win,doc,emit}=fixture(t);emit(win,'keydown',{code:'KeyE'});emit(win,'keydown',{code:'KeyE',repeat:true});assert.equal(controls.read().itemPress,1);
   doc.hidden=true;emit(doc,'visibilitychange');const input=controls.read();assert.equal(input.throttle,false);assert.equal(input.steer,0);
+});
+
+test('刹车覆盖自动油门，触摸取消与键盘松开后恢复，禁用时安全刹车',t=>{
+  const {controls,win,buttons,emit}=fixture(t);
+  emit(buttons.brake,'pointerdown',{pointerId:8});assert.equal(controls.read().brake,true);assert.equal(controls.read().throttle,false);
+  emit(buttons.brake,'pointercancel',{pointerId:8});assert.equal(controls.read().brake,false);assert.equal(controls.read().throttle,true);
+  emit(win,'keydown',{code:'KeyS'});assert.equal(controls.read().brake,true);emit(win,'keyup',{code:'KeyS'});assert.equal(controls.read().brake,false);
+  controls.enabled=false;assert.equal(controls.read().brake,true);assert.equal(controls.read().throttle,false);
 });

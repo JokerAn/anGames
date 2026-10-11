@@ -3,22 +3,28 @@ import { WORLD, MAPS, getMap } from './maps.js';
 import { findPath, groundClear, navigationGoal } from './navigation.js';
 export { findPath, groundClear } from './navigation.js';
 export { WORLD, MAPS, getMap } from './maps.js';
-export const MAX_HP = 500;                      // 5× the old 100 so fights last
+export const MAX_HP = 150;
 // Head hits count double; the vertical band of the target volume decides zone.
 export const HEADSHOT_MULTIPLIER = 2;
 export const WEAPONS = {
-  blaster: { name: '泡泡突击步枪', short: '泡泡步枪', icon: '↗', color: '#ffb84a', damage: 22, interval: .2, spread: .018, range: 60, pellets: 1, speed: 1, desc: '全能选手，稳稳命中', sound: 250 },
-  smg: { name: '糖果冲锋枪', short: '糖果冲锋', icon: 'ϟ', color: '#ab90e4', damage: 12, interval: .2, spread: .048, range: 28, pellets: 1, speed: 1.13, desc: '轻巧灵活，快乐连发', sound: 420 },
-  shotgun: { name: '彩虹散弹枪', short: '彩虹散弹', icon: '≋', color: '#f489aa', damage: 15, interval: .2, spread: .13, range: 18, pellets: 7, speed: .95, desc: '近距离，一次七颗彩球', sound: 130 },
-  sniper: { name: '星星狙击枪', short: '星星狙击', icon: '✧', color: '#6fbec5', damage: 72, interval: .2, spread: .003, range: 80, pellets: 1, speed: .88, desc: '慢慢瞄准，远距离发光', sound: 620 },
+  blaster: { name:'AR-24 脉冲步枪',short:'AR-24 脉冲',icon:'↗',color:'#70e3d2',damage:22,interval:.145,spread:.014,range:65,pellets:1,speed:1,mag:30,reload:1.65,recoil:.007,falloff:34,desc:'中距压制 · 30 发 / 1.65s 换弹',sound:165 },
+  smg: { name:'VX-9 疾风冲锋枪',short:'VX-9 疾风',icon:'ϟ',color:'#ad9cf5',damage:15,interval:.075,spread:.036,range:36,pellets:1,speed:1.1,mag:36,reload:1.35,recoil:.004,falloff:15,desc:'高速突入 · 36 发 / 1.35s 换弹',sound:320 },
+  shotgun: { name:'SG-8 破阵霰弹枪',short:'SG-8 破阵',icon:'≋',color:'#ffb773',damage:16,interval:.78,spread:.105,range:22,pellets:8,speed:.97,mag:8,reload:2.25,recoil:.026,falloff:9,desc:'贴身爆发 · 8 发 / 2.25s 换弹',sound:85 },
+  sniper: { name:'SR-7 长弓狙击枪',short:'SR-7 长弓',icon:'✧',color:'#81c5ff',damage:86,interval:1.15,spread:.002,range:95,pellets:1,speed:.91,mag:5,reload:2.6,recoil:.035,falloff:70,desc:'远距精确 · 5 发 / 2.6s 换弹',sound:110 },
 };
+export const OBJECTIVES = Object.freeze({
+  blocks:[{x:0,z:16,name:'中央通道'},{x:26,z:0,name:'东侧平台'},{x:-26,z:0,name:'西侧平台'}],
+  harbor:[{x:0,z:8,name:'装卸通道'},{x:28,z:-18,name:'北侧货场'},{x:-28,z:18,name:'南侧货场'}],
+  desert:[{x:0,z:0,name:'遗迹中庭'},{x:28,z:4,name:'东侧遗址'},{x:-28,z:-4,name:'西侧遗址'}],
+});
+export const OBJECTIVE_PERIOD = 50;
 export const AI_LEVELS = Object.freeze({
-  easy:Object.freeze({speed:3.3,interval:2.1,damage:.55,spread:.038,turnRate:4.6,reaction:.42,burst:1.05,pause:.72,think:.26,closing:.92}),
-  hard:Object.freeze({speed:4.0,interval:1.55,damage:.8,spread:.012,turnRate:6,reaction:.2,burst:1.5,pause:.32,think:.16,closing:.9}),
+  easy:Object.freeze({speed:5.1,interval:1.7,damage:.72,spread:.038,turnRate:4.6,reaction:.42,burst:1.05,pause:.72,think:.26,closing:.92}),
+  hard:Object.freeze({speed:5.8,interval:1.3,damage:.9,spread:.012,turnRate:6,reaction:.2,burst:1.5,pause:.32,think:.16,closing:.9}),
 });
 export function cameraFraming(actor,aim=false){
   const aspect=clamp(finite(actor.viewAspect,16/9),.4,3),portraitScale=Math.min(1,aspect);
-  return {distance:aim?3.2:5.7,shoulder:(aim?1.16:1.65)*portraitScale,height:aim?2:2.12};
+  return {distance:aim?2.6:4.5,shoulder:(aim?.85:1.1)*portraitScale*(actor.shoulder===-1?-1:1),height:aim?1.8:1.95};
 }
 export const isWeapon = key => typeof key==='string' && Object.hasOwn(WEAPONS,key);
 export const OBSTACLES = getMap().obstacles; // Backward-compatible default for callers.
@@ -28,16 +34,16 @@ export const finite = (n, fallback=0) => Number.isFinite(Number(n)) ? Number(n) 
 // advance toward the objective (or hold at weapon range) so a defending player
 // is not buried by a whole stack converging at full speed.
 const ATTACK_SLOTS_EASY=2,ATTACK_SLOTS_HARD=3,ATTACK_WINDOW=56,ATTACK_SLOT_LIFE=.35;
-export function defaultConfig(){ return {map:'blocks',duration:180,target:30,bots:{blue:[{difficulty:'easy',weapon:'random'},{difficulty:'easy',weapon:'random'}],red:Array.from({length:4},()=>({difficulty:'easy',weapon:'random'}))}}; }
+export function defaultConfig(){ return {map:'harbor',rules:'control',duration:300,target:100,bots:{blue:[{difficulty:'hard',weapon:'blaster'},{difficulty:'easy',weapon:'smg'}],red:[{difficulty:'hard',weapon:'blaster'},{difficulty:'easy',weapon:'smg'},{difficulty:'easy',weapon:'shotgun'}]}}; }
 export function sanitizeConfig(raw={}) {
   if(!raw||typeof raw!=='object'||Array.isArray(raw))raw={};
   const bots={};
   for(const team of ['blue','red']) bots[team]=(Array.isArray(raw.bots?.[team])?raw.bots[team]:[]).slice(0,24).map(b=>({difficulty:b?.difficulty==='hard'?'hard':'easy',weapon:isWeapon(b?.weapon)?b.weapon:'random'}));
-  return {map:getMap(raw.map).id,duration:clamp(Math.round(finite(raw.duration,180)),60,600),target:clamp(Math.round(finite(raw.target,30)),5,100),bots};
+  return {map:getMap(raw.map).id,rules:raw.rules==='control'?'control':'elimination',duration:clamp(Math.round(finite(raw.duration,180)),60,600),target:clamp(Math.round(finite(raw.target,30)),5,100),bots};
 }
 export function sanitizeInput(raw={}) {
   if(!raw||typeof raw!=='object'||Array.isArray(raw))raw={};
-  return {moveX:clamp(finite(raw.moveX),-1,1),moveZ:clamp(finite(raw.moveZ),-1,1),yaw:finite(raw.yaw)%(Math.PI*2),pitch:clamp(finite(raw.pitch),-1.2,1.2),fire:raw.fire===true,jump:raw.jump===true,aim:raw.aim===true,sprint:raw.sprint===true,weapon:isWeapon(raw.weapon)?raw.weapon:undefined,viewAspect:raw.viewAspect===undefined?undefined:clamp(finite(raw.viewAspect,16/9),.4,3)};
+  return {moveX:clamp(finite(raw.moveX),-1,1),moveZ:clamp(finite(raw.moveZ),-1,1),yaw:finite(raw.yaw)%(Math.PI*2),pitch:clamp(finite(raw.pitch),-1.2,1.2),fire:raw.fire===true,jump:raw.jump===true,aim:raw.aim===true,sprint:raw.sprint===true,reload:raw.reload===true,dash:raw.dash===true,shoulder:raw.shoulder===-1?-1:1,viewMode:raw.viewMode==='first'?'first':'third',weapon:isWeapon(raw.weapon)?raw.weapon:undefined,viewAspect:raw.viewAspect===undefined?undefined:clamp(finite(raw.viewAspect,16/9),.4,3)};
 }
 export function blocked(x,z,r=.48,map='blocks'){return Math.abs(x)>WORLD-r || Math.abs(z)>WORLD-r || getMap(map).obstacles.some(o=>Math.abs(x-o.x)<o.w/2+r&&Math.abs(z-o.z)<o.d/2+r);}
 export function moveActor(a,dx,dz,map='blocks'){if(!blocked(a.x+dx,a.z,.48,map))a.x+=dx;if(!blocked(a.x,a.z+dz,.48,map))a.z+=dz;}
@@ -56,20 +62,20 @@ export function wallDistance(origin,dir,max,map='blocks',padding=0){
 export function visible(a,b,map='blocks',height=1.4){const dx=b.x-a.x,dz=b.z-a.z,d=Math.hypot(dx,dz)||.001;return wallDistance({x:a.x,y:height,z:a.z},{x:dx/d,y:0,z:dz/d},d,map)>=d-.1;}
 export class Match {
   constructor(config, humans, random=Math.random){
-    this.config=sanitizeConfig(config);this.random=random;this.time=0;this.actors=[];this.actorIndex=new Map();this.score={blue:0,red:0};this.events=[];this.eventId=0;this.ended=false;this.winner=null;
+    this.config=sanitizeConfig(config);this.random=random;this.time=0;this.actors=[];this.actorIndex=new Map();this.score={blue:0,red:0};this.events=[];this.eventId=0;this.ended=false;this.winner=null;this.objective={...OBJECTIVES[this.config.map][0],index:0,radius:6,owner:null,progress:0,contested:false,next:OBJECTIVE_PERIOD};this.objectiveClock=0;
     for(const h of humans)this.addHuman(h);
-    for(const team of ['blue','red'])this.config.bots[team].forEach((b,i)=>this.addActor({id:`bot-${team}-${i}`,name:`${b.difficulty==='hard'?'闪电':'泡泡'}${i+1}号`,team,bot:true,...b}));
+    for(const team of ['blue','red'])this.config.bots[team].forEach((b,i)=>this.addActor({id:`bot-${team}-${i}`,name:`${b.difficulty==='hard'?'老兵':'队员'}${i+1}`,team,bot:true,...b}));
   }
   addHuman(h){if(!this.actors.some(a=>a.id===h.id))this.addActor({...h,bot:false});}
-  addActor(info){const a={...info,x:0,z:0,y:0,vy:0,yaw:0,pitch:0,hp:MAX_HP,kills:0,deaths:0,cooldown:.8,respawn:0,shield:2,lastHit:-20,lastAttacker:null,lastStep:0,viewAspect:16/9,input:{},path:[],pathTime:0,weaponChoice:info.weapon||'blaster',weapon:'blaster',fleeTarget:null,fleeUntil:0,fear:0,patrolX:null,patrolZ:null,patrolUntil:0,patrolWait:0,alertUntil:0};this.actors.push(a);this.actorIndex.set(a.id,a);this.spawn(a);return a;}
+  addActor(info){const a={...info,x:0,z:0,y:0,vy:0,yaw:0,pitch:0,hp:MAX_HP,kills:0,deaths:0,cooldown:.8,respawn:0,shield:2,lastHit:-20,lastAttacker:null,lastStep:0,ammo:{},reloadTime:0,reloadHeld:false,dashHeld:false,dashTime:0,dashCooldown:0,dashX:0,dashZ:0,stamina:100,shoulder:1,viewMode:'third',objectiveTime:0,viewAspect:16/9,input:{},path:[],pathTime:0,weaponChoice:info.weapon||'blaster',weapon:'blaster',fleeTarget:null,fleeUntil:0,fear:0,patrolX:null,patrolZ:null,patrolUntil:0,patrolWait:0,alertUntil:0};this.actors.push(a);this.actorIndex.set(a.id,a);this.spawn(a);return a;}
   spawn(a){
     const sign=a.team==='blue'?1:-1;let best={x:0,z:sign*WORLD*.84},bestDistance=-1;
-    for(let i=0;i<12;i++){const p={x:(this.random()-.5)*WORLD*1.52,z:sign*(WORLD*.72+this.random()*WORLD*.2)};if(blocked(p.x,p.z,.48,this.config.map))continue;const enemyDistance=Math.min(100,...this.actors.filter(b=>b.team!==a.team&&b.hp>0).map(b=>Math.hypot(p.x-b.x,p.z-b.z)));const allyDistance=Math.min(8,...this.actors.filter(b=>b.id!==a.id&&b.team===a.team&&b.hp>0).map(b=>Math.hypot(p.x-b.x,p.z-b.z)));const d=enemyDistance+allyDistance*3;if(d>bestDistance){best=p;bestDistance=d;}}
-    a.x=best.x;a.z=best.z;a.y=0;a.vy=0;a.hp=MAX_HP;a.shield=2;a.respawn=0;a.pitch=a.bot?0:-.12;a.yaw=a.team==='blue'?0:Math.PI;a.path=[];a.pathIndex=0;a.pathTime=0;a.routeGoal=-1;a.routeTarget=null;a.targetId=null;a.thinkTime=0;a.canShoot=false;a.fireReadyAt=this.time;a.lastAttacker=null;a.lastHit=-20;a.strafeSign=this.actors.indexOf(a)%2?-1:1;a.coverTarget=null;a.coverUntil=0;a.fleeTarget=null;a.fleeUntil=0;a.fear=0;a.patrolX=null;a.patrolZ=null;a.patrolUntil=0;a.patrolWait=0;a.alertUntil=0;a.navMoving=false;a.stuckTime=0;a.navX=a.x;a.navZ=a.z;a.attackKey=null;a.attackUntil=0;a.attackGranted=true;a.input.weapon=undefined;
+    for(let i=0;i<12;i++){const p={x:(this.random()-.5)*WORLD*1.52,z:sign*(WORLD*.54+this.random()*WORLD*.12)};if(blocked(p.x,p.z,.48,this.config.map))continue;const enemyDistance=Math.min(100,...this.actors.filter(b=>b.team!==a.team&&b.hp>0).map(b=>Math.hypot(p.x-b.x,p.z-b.z)));const allyDistance=Math.min(8,...this.actors.filter(b=>b.id!==a.id&&b.team===a.team&&b.hp>0).map(b=>Math.hypot(p.x-b.x,p.z-b.z)));const d=enemyDistance+allyDistance*3;if(d>bestDistance){best=p;bestDistance=d;}}
+    a.ammo=Object.fromEntries(Object.entries(WEAPONS).map(([key,w])=>[key,w.mag]));a.reloadTime=0;a.dashTime=0;a.dashCooldown=0;a.stamina=100;a.reloadHeld=a.dashHeld=false;a.x=best.x;a.z=best.z;a.y=0;a.vy=0;a.hp=MAX_HP;a.shield=2;a.respawn=0;a.pitch=a.bot?0:-.12;a.yaw=a.team==='blue'?0:Math.PI;a.path=[];a.pathIndex=0;a.pathTime=0;a.routeGoal=-1;a.routeTarget=null;a.targetId=null;a.thinkTime=0;a.canShoot=false;a.fireReadyAt=this.time;a.lastAttacker=null;a.lastHit=-20;a.strafeSign=this.actors.indexOf(a)%2?-1:1;a.coverTarget=null;a.coverUntil=0;a.fleeTarget=null;a.fleeUntil=0;a.fear=0;a.patrolX=null;a.patrolZ=null;a.patrolUntil=0;a.patrolWait=0;a.alertUntil=0;a.navMoving=false;a.stuckTime=0;a.navX=a.x;a.navZ=a.z;a.attackKey=null;a.attackUntil=0;a.attackGranted=true;a.input.weapon=undefined;
     a.weapon=a.weaponChoice==='random'?Object.keys(WEAPONS)[Math.floor(this.random()*4)]:a.weaponChoice;if(!isWeapon(a.weapon))a.weapon='blaster';
   }
   setInput(id,input){const a=this.actors.find(a=>a.id===id&&!a.bot);if(a)a.input=sanitizeInput(input);}
-  stopInput(id){const a=this.actorIndex.get(id);if(a&&!a.bot)a.input=sanitizeInput({yaw:a.yaw,pitch:a.pitch});}
+  stopInput(id){const a=this.actorIndex.get(id);if(a&&!a.bot)a.input=sanitizeInput({yaw:a.yaw,pitch:a.pitch,shoulder:a.shoulder,viewMode:a.viewMode,viewAspect:a.viewAspect});}
   event(e){this.events.push({...e,id:++this.eventId});}
   patrol(a,dt,hard,level,map){
     // No contact: hold a forward-leaning patrol area. The bot drifts toward the
@@ -116,6 +122,23 @@ export class Match {
     const turn=Math.atan2(Math.sin(desiredYaw-a.yaw),Math.cos(desiredYaw-a.yaw));
     const yaw=a.yaw+clamp(turn,-level.turnRate*.7*dt,level.turnRate*.7*dt);
     return {yaw,pitch:a.pitch,moveX:wx*Math.cos(yaw)-wz*Math.sin(yaw),moveZ:wx*Math.sin(yaw)+wz*Math.cos(yaw),fire:false,aim:false,jump:false};
+  }
+  objectiveAI(a,dt,level){
+    const map=this.config.map,o=this.objective,slot=this.actors.indexOf(a),angle=slot*2.4;
+    const goal={x:o.x+Math.cos(angle)*2.5,z:o.z+Math.sin(angle)*2.5,id:`objective-${o.index}`};
+    if(blocked(goal.x,goal.z,.48,map)){goal.x=o.x;goal.z=o.z;}
+    const distance=Math.hypot(a.x-goal.x,a.z-goal.z);a.targetId=null;a.canShoot=false;
+    if(distance<.5)return {yaw:a.yaw+dt*.3,pitch:0,moveX:0,moveZ:0,fire:false};
+    let next=goal;
+    if(!groundClear(a,goal,map)){
+      const key=navigationGoal(goal,map);a.pathTime-=dt;
+      if(a.routeGoal!==key||!a.path.length||a.pathTime<=0||!a.path[a.pathIndex]||!groundClear(a,a.path[a.pathIndex],map)){a.path=findPath(a,goal,map);a.pathIndex=0;a.routeGoal=key;a.pathTime=2;}
+      for(let i=0;i<6&&a.pathIndex+1<a.path.length;i++){if(!groundClear(a,a.path[a.pathIndex+1],map))break;a.pathIndex++;}
+      next=a.path[a.pathIndex]||goal;
+    }
+    const dx=next.x-a.x,dz=next.z-a.z,length=Math.hypot(dx,dz)||1,wx=dx/length,wz=dz/length,bearing=Math.atan2(-wx,-wz);
+    const turn=Math.atan2(Math.sin(bearing-a.yaw),Math.cos(bearing-a.yaw)),yaw=a.yaw+clamp(turn,-level.turnRate*dt,level.turnRate*dt);
+    return {yaw,pitch:0,moveX:wx*Math.cos(yaw)-wz*Math.sin(yaw),moveZ:wx*Math.sin(yaw)+wz*Math.cos(yaw),fire:false,sprint:distance>12&&a.stamina>35};
   }
   ai(a,dt){
     const map=this.config.map,hard=a.difficulty==='hard',level=AI_LEVELS[a.difficulty]||AI_LEVELS.easy;
@@ -165,6 +188,7 @@ export class Match {
       a.searching=false;
       if(!target){
         // Prefer a real player as the search lead; fall back to the nearest foe.
+        if(this.config.rules==='control'&&this.actors.indexOf(a)%3!==0)return this.objectiveAI(a,dt,level);
         const lead=human||nearest;
         if(lead){
           const err=hard?2.5:5.5;                       // metres of aim error
@@ -378,22 +402,62 @@ export class Match {
     const fire=clearShot&&alignment<(hard?.16:.24)&&this.time>=a.fireReadyAt&&phase<level.burst&&dist<WEAPONS[a.weapon].range&&a.shield<.8&&target.shield<=0;
     return {yaw,pitch,moveX:wx*Math.cos(yaw)-wz*Math.sin(yaw),moveZ:wx*Math.sin(yaw)+wz*Math.cos(yaw),fire,aim:hard&&clearShot&&!a.navMoving,jump:false};
   }
+  startReload(a){
+    if(a.reloadTime>0||a.ammo[a.weapon]>=WEAPONS[a.weapon].mag)return;
+    a.reloadTime=WEAPONS[a.weapon].reload;this.event({type:'reload',actor:a.id,weapon:a.weapon});
+  }
+  updateObjective(dt){
+    if(this.config.rules!=='control')return;
+    const index=Math.floor(this.time/OBJECTIVE_PERIOD)%3;
+    if(index!==this.objective.index){
+      this.objective={...OBJECTIVES[this.config.map][index],index,radius:6,owner:null,progress:0,contested:false,next:(Math.floor(this.time/OBJECTIVE_PERIOD)+1)*OBJECTIVE_PERIOD};
+      this.objectiveClock=0;this.event({type:'objective',name:this.objective.name});
+    }
+    const o=this.objective,inside=this.actors.filter(a=>a.hp>0&&a.shield<=0&&Math.hypot(a.x-o.x,a.z-o.z)<o.radius);
+    const blue=inside.filter(a=>a.team==='blue').length,red=inside.length-blue;
+    o.contested=blue>0&&red>0;
+    if(!o.contested&&(blue||red)){
+      const team=blue?'blue':'red',direction=blue?1:-1;
+      o.progress=clamp(o.progress+direction*dt*.34,-1,1);
+      if(o.owner&&((o.owner==='blue'&&o.progress<=0)||(o.owner==='red'&&o.progress>=0)))o.owner=null;
+      if(Math.abs(o.progress)>=1&&o.owner!==team){o.owner=team;this.event({type:'capture',team,name:o.name});}
+      for(const actor of inside)actor.objectiveTime+=dt;
+    }
+    if(o.owner&&!o.contested){this.objectiveClock+=dt;while(this.objectiveClock>=1){this.score[o.owner]++;this.objectiveClock--;}}
+  }
   step(dt){
     if(this.ended)return;dt=clamp(dt,0,.05);this.time+=dt;
     this.actorIndex.clear();for(const actor of this.actors)this.actorIndex.set(actor.id,actor);
     for(const a of this.actors){
       if(a.hp<=0){a.respawn-=dt;if(a.respawn<=0){this.spawn(a);this.event({type:'respawn',actor:a.id});}continue;}
-      a.shield=Math.max(0,a.shield-dt);a.cooldown-=dt;
+      a.shield=Math.max(0,a.shield-dt);a.cooldown-=dt;a.dashCooldown=Math.max(0,a.dashCooldown-dt);
+      if(a.reloadTime>0){a.reloadTime=Math.max(0,a.reloadTime-dt);if(a.reloadTime===0){a.ammo[a.weapon]=WEAPONS[a.weapon].mag;this.event({type:'ready',actor:a.id});}}
       const input=a.bot?this.ai(a,dt):a.input;
-      if(isWeapon(input.weapon)&&input.weapon!==a.weapon){a.weapon=input.weapon;a.weaponChoice=input.weapon;a.cooldown=Math.max(a.cooldown,.3);}
+      if(a.bot&&a.difficulty==='hard'&&this.time-a.lastHit<.4&&a.dashCooldown===0)input.dash=true;
+      if(isWeapon(input.weapon)&&input.weapon!==a.weapon){a.weapon=input.weapon;a.weaponChoice=input.weapon;a.reloadTime=0;a.cooldown=Math.max(a.cooldown,.25);}
+      if(!a.bot){a.shoulder=input.shoulder===-1?-1:1;a.viewMode=input.viewMode==='first'?'first':'third';}
       a.yaw=input.yaw??a.yaw;a.pitch=input.pitch??a.pitch;if(input.viewAspect!==undefined)a.viewAspect=input.viewAspect;
       let mx=input.moveX||0,mz=input.moveZ||0;const len=Math.hypot(mx,mz);if(len>1){mx/=len;mz/=len;}
-      const speed=(a.bot?(AI_LEVELS[a.difficulty]||AI_LEVELS.easy).speed:6.2)*WEAPONS[a.weapon].speed*(input.aim?.66:input.sprint?1.32:1);
-      moveActor(a,(mx*Math.cos(a.yaw)+mz*Math.sin(a.yaw))*speed*dt,(-mx*Math.sin(a.yaw)+mz*Math.cos(a.yaw))*speed*dt,this.config.map);
-      if(input.jump&&a.y<=0&&!a.jumpHeld)a.vy=6;a.jumpHeld=!!input.jump;a.vy-=16*dt;a.y=Math.max(0,a.y+a.vy*dt);if(a.y===0)a.vy=0;
-      if(input.fire&&a.cooldown<=0){this.shoot(a,input.aim);a.cooldown=WEAPONS[a.weapon].interval*(a.bot?(AI_LEVELS[a.difficulty]||AI_LEVELS.easy).interval:1);}
-      if(a.hp<MAX_HP&&this.time-a.lastHit>5)a.hp=Math.min(MAX_HP,a.hp+dt*8*5);
+      const wx=mx*Math.cos(a.yaw)+mz*Math.sin(a.yaw),wz=-mx*Math.sin(a.yaw)+mz*Math.cos(a.yaw);
+      if(input.dash&&!a.dashHeld&&a.dashCooldown<=0&&a.stamina>=28&&a.y===0){
+        const magnitude=Math.hypot(wx,wz);a.dashX=magnitude>.1?wx/magnitude:-Math.sin(a.yaw);a.dashZ=magnitude>.1?wz/magnitude:-Math.cos(a.yaw);
+        a.dashTime=.23;a.dashCooldown=2.8;a.stamina-=28;a.shield=0;this.event({type:'dash',actor:a.id,x:a.x,y:a.y+.7,z:a.z,team:a.team});
+      }
+      a.dashHeld=!!input.dash;
+      const sprint=!!input.sprint&&!input.aim&&!input.fire&&a.stamina>5&&len>.1;
+      a.sprinting=sprint;a.stamina=clamp(a.stamina+dt*(sprint?-23:17),0,100);
+      const speed=(a.bot?(AI_LEVELS[a.difficulty]||AI_LEVELS.easy).speed:7.2)*WEAPONS[a.weapon].speed*(input.aim?.65:sprint?1.45:1);
+      if(a.dashTime>0){const duration=Math.min(dt,a.dashTime);a.dashTime-=duration;for(let i=0;i<6;i++)moveActor(a,a.dashX*23*duration/6,a.dashZ*23*duration/6,this.config.map);}
+      else moveActor(a,wx*speed*dt,wz*speed*dt,this.config.map);
+      if(input.jump&&a.y<=0&&!a.jumpHeld)a.vy=5.6;a.jumpHeld=!!input.jump;a.vy-=16*dt;a.y=Math.max(0,a.y+a.vy*dt);if(a.y===0)a.vy=0;
+      if((input.reload&&!a.reloadHeld)||(a.bot&&a.ammo[a.weapon]===0))this.startReload(a);a.reloadHeld=!!input.reload;
+      if(input.fire&&a.cooldown<=0&&a.reloadTime===0&&a.dashTime<=0){
+        if(a.ammo[a.weapon]>0){a.shield=0;this.shoot(a,input.aim);a.ammo[a.weapon]--;a.cooldown=WEAPONS[a.weapon].interval*(a.bot?(AI_LEVELS[a.difficulty]||AI_LEVELS.easy).interval:1);}
+        else this.startReload(a);
+      }
+      if(a.hp<MAX_HP&&this.time-a.lastHit>5)a.hp=Math.min(MAX_HP,a.hp+dt*18);
     }
+    this.updateObjective(dt);
     if(this.score.blue>=this.config.target||this.score.red>=this.config.target||this.time>=this.config.duration){this.ended=true;this.winner=this.score.blue===this.score.red?'draw':this.score.blue>this.score.red?'blue':'red';this.event({type:'end',winner:this.winner});}
   }
   shoot(a,aim){
@@ -425,7 +489,8 @@ export class Match {
       const dir=viewDirection(yaw,pitch),hit=traceRay(origin,dir,w.range,this.actors,a,map),victim=hit.victim;
       if(victim&&victim.shield<=0){
         const head=hit.zone==='head';
-        const damage=w.damage*(head?HEADSHOT_MULTIPLIER:1)*(a.bot?(AI_LEVELS[a.difficulty]||AI_LEVELS.easy).damage:1);victim.hp=Math.max(0,victim.hp-damage);victim.lastHit=this.time;victim.lastAttacker=a.id;
+        const distanceScale=clamp(1-Math.max(0,hit.distance-w.falloff)/(w.range-w.falloff)*.6,.4,1);
+        const damage=w.damage*distanceScale*(head?HEADSHOT_MULTIPLIER:1)*(a.bot?(AI_LEVELS[a.difficulty]||AI_LEVELS.easy).damage:1);victim.hp=Math.max(0,victim.hp-damage);victim.lastHit=this.time;victim.lastAttacker=a.id;
         this.event({type:'hit',actor:a.id,target:victim.id,damage,head,x:victim.x,y:victim.y+1.2,z:victim.z});
         if(victim.hp===0){victim.deaths++;victim.respawn=3;a.kills++;this.score[a.team]++;this.event({type:'pop',actor:a.id,target:victim.id,team:a.team,x:victim.x,y:victim.y+1,z:victim.z});}
       }
@@ -434,12 +499,13 @@ export class Match {
     this.event({type:'shot',actor:a.id,weapon:a.weapon,team:a.team,origin,traces});
   }
   drainEvents(){return this.events.splice(0);}
-  snapshot(){return {time:this.time,score:{...this.score},ended:this.ended,winner:this.winner,config:this.config,actors:this.actors.map(({id,name,team,bot,difficulty,x,y,z,yaw,pitch,hp,kills,deaths,shield,respawn,weapon,viewAspect})=>({id,name,team,bot,difficulty,x,y,z,yaw,pitch,hp,kills,deaths,shield,respawn,weapon,viewAspect}))};}
+  snapshot(){return {time:this.time,score:{...this.score},ended:this.ended,winner:this.winner,config:this.config,objective:this.config.rules==='control'?{...this.objective}:null,actors:this.actors.map(({id,name,team,bot,difficulty,x,y,z,yaw,pitch,hp,kills,deaths,shield,respawn,weapon,viewAspect,ammo,reloadTime,dashCooldown,dashTime,stamina,sprinting,shoulder,viewMode,objectiveTime})=>({id,name,team,bot,difficulty,x,y,z,yaw,pitch,hp,kills,deaths,shield,respawn,weapon,viewAspect,ammo:{...ammo},reloadTime,dashCooldown,dashTime,stamina,sprinting,shoulder,viewMode,objectiveTime}))};}
 }
 
 // Same over-the-shoulder geometry on the client and server keeps the reticle honest.
 export function viewDirection(yaw,pitch){return {x:-Math.sin(yaw)*Math.cos(pitch),y:Math.sin(pitch),z:-Math.cos(yaw)*Math.cos(pitch)};}
 export function cameraPose(actor,yaw,pitch,aim=false,map='blocks'){
+  if(actor.viewMode==='first')return {x:actor.x,y:actor.y+1.65,z:actor.z,distance:0};
   const direction=viewDirection(yaw,pitch),{distance,shoulder,height}=cameraFraming(actor,aim);
   const anchor={x:actor.x,y:actor.y+height,z:actor.z};
   const offset={x:-direction.x*distance+Math.cos(yaw)*shoulder,y:-direction.y*distance,z:-direction.z*distance-Math.sin(yaw)*shoulder};
@@ -449,17 +515,17 @@ export function cameraPose(actor,yaw,pitch,aim=false,map='blocks'){
   return {x:anchor.x+ray.x*safe,y:anchor.y+ray.y*safe,z:anchor.z+ray.z*safe,distance:safe};
 }
 export function aimAngles(actor,target,aim=false){
-  const dx=target.x-actor.x,dz=target.z-actor.z,distance=Math.hypot(dx,dz),{shoulder,height}=cameraFraming(actor,aim);
+  const dx=target.x-actor.x,dz=target.z-actor.z,distance=Math.hypot(dx,dz),framing=cameraFraming(actor,aim),shoulder=actor.viewMode==='first'?0:framing.shoulder,height=actor.viewMode==='first'?1.65:framing.height;
   const offset=Math.min(shoulder,Math.max(0,distance-.01));
   return {yaw:Math.atan2(-dx,-dz)+Math.asin(offset/Math.max(.01,distance)),pitch:Math.atan2(target.y-(actor.y+height),Math.sqrt(Math.max(.01,distance*distance-offset*offset)))};
 }
 export function traceRay(origin,dir,max,actors,shooter,map='blocks'){
   let distance=wallDistance(origin,dir,max,map),victim=null,zone='body';
+  if(dir.y<0&&origin.y>=0)distance=Math.min(distance,origin.y/-dir.y);
   for(const b of actors){
     if(b.id===shooter.id||b.hp<=0||b.team===shooter.team)continue;
-    // Two stacked hit volumes: lower torso and upper body. The upper band also
-    // reads as the head zone, so a hit that lands there doubles its damage.
-    for(const band of [{height:.72,radius:.62,zone:'body'},{height:1.43,radius:.48,zone:'head'}]){
+    // Separate leg, torso and helmet volumes: aiming at the chest no longer counts as a headshot.
+    for(const band of [{height:.32,radius:.36,zone:'body'},{height:.9,radius:.49,zone:'body'},{height:1.57,radius:.32,zone:'head'}]){
       const dx=b.x-origin.x,dy=b.y+band.height-origin.y,dz=b.z-origin.z,t=dx*dir.x+dy*dir.y+dz*dir.z;
       const perpendicular=dx*dx+dy*dy+dz*dz-t*t,radius=band.radius;
       if(t<0||perpendicular>radius*radius)continue;

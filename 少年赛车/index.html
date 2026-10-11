@@ -2,46 +2,47 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-  <meta name="theme-color" content="#101b2b"><meta name="description" content="少年赛车：手机 3D 街机赛车，漂移、氮气与好友局域网竞速。">
-  <title>少年赛车 · 让热爱，全速向前</title><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css">
+  <meta name="theme-color" content="#141719"><meta name="description" content="少年赛车：手机 3D 赛道竞速，驾驶反馈、自动画质与局域网双人比赛。">
+  <title>少年赛车 · 为每一个弯道而生</title><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <main id="garage" class="garage">
-  <header class="topbar"><a class="brand" href="/" aria-label="少年赛车首页"><span class="brand-icon">↗</span><span>少年赛车<small>JUNIOR RACERS CLUB</small></span></a><div class="top-actions"><span class="status-pill"><i></i> 赛车俱乐部已开放</span><button id="sound" class="icon-button" aria-label="开启音效">♪<span>音效关</span></button><button id="help" class="icon-button">?<span>玩法</span></button></div></header>
+  <header class="topbar"><a class="brand" href="/" aria-label="少年赛车首页"><span class="brand-icon">↗</span><span>少年赛车<small>JRC / MOTORSPORT</small></span></a><div class="top-actions"><span class="status-pill"><i></i> <span id="garage-quality">画质自动适配</span></span><button id="sound" class="icon-button" aria-label="开启音效">♪<span>音效关</span></button><button id="help" class="icon-button">?<span>玩法</span></button></div></header>
   <div class="garage-layout">
     <section class="showroom">
-      <div class="intro"><div class="eyebrow"><span></span> YOUR NEXT ADVENTURE</div><h1>让热爱，<br><em>全速向前。</em></h1><p>握紧方向，甩开日常。<br>下一个弯道，和朋友一起冲线。</p></div>
-      <div id="garage-view" class="garage-view"><div id="loading">正在点亮赛道…</div></div>
-      <div class="car-caption"><div><span class="tiny">YOUR MACHINE / 你的座驾</span><h2 id="car-title">流星 GT <span>01</span></h2></div><span class="car-class" id="car-tag">均衡跑车</span></div>
-      <div class="showroom-bottom"><span><i class="dot"></i> 全部车型自由驾驶</span><span>3D ARCADE RACING <b>↗</b></span></div>
+      <div class="intro"><div class="eyebrow"><span></span> PRECISION IN EVERY CORNER</div><h1>为每一个<br><em>弯道而生。</em></h1><p>找到刹车点，守住出弯线。<br>从第一圈开始，打磨你的速度。</p></div>
+      <div id="garage-view" class="garage-view"><div id="loading">正在准备车库…</div></div>
+      <div class="car-caption"><div><span class="tiny">YOUR MACHINE / 你的座驾</span><h2 id="car-title">赤曜 GT <span>01</span></h2></div><span class="car-class" id="car-tag">中置双门跑车</span></div>
+      <div class="showroom-bottom"><span><i class="dot"></i> 全部车型自由驾驶</span><span>TRACK / STREET / NIGHT <b>↗</b></span></div>
     </section>
     <section class="setup-panel">
-      <div class="section-heading"><div><span class="eyebrow">READY TO RACE</span><h2>今天，开什么？</h2></div><span class="step-tag">01 — 03</span></div>
-      <div class="section-label"><b>01</b> 选择座驾 <span>各有锋芒</span></div><div id="car-options" class="car-options"></div>
+      <div class="section-heading"><div><span class="eyebrow">READY TO RACE</span><h2>设定你的比赛</h2></div><span class="step-tag">01 — 03</span></div>
+      <div class="section-label"><b>01</b> 选择座驾 <span>不同驾驶调校</span></div><div id="car-options" class="car-options"></div>
       <div id="car-stats" class="car-stats"></div>
       <div class="section-label"><b>02</b> 引擎配置</div><div id="engine-options" class="engine-options"></div>
-      <div class="section-label"><b>03</b> 下一站目的地 <span>3 条赛道</span></div><div id="track-options" class="track-options"></div>
-      <div class="race-options"><label>圈数<select id="laps"><option value="3">3 圈 · 标准赛</option><option value="2">2 圈 · 短程赛</option></select></label><label>人机难度<select id="difficulty"><option value="normal">街机挑战</option><option value="easy">轻松兜风</option></select></label><label class="check-label"><input id="auto-throttle" type="checkbox" checked>自动油门</label></div>
-      <div class="mode-tabs" role="group" aria-label="比赛模式"><button data-mode="solo" class="active">单人练车 <span>1 人 + 5 AI</span></button><button data-mode="lan">好友开黑 <span>2 人 + 4 AI</span></button></div>
+      <div class="section-label"><b>03</b> 赛道选择 <span>3 条赛道</span></div><div id="track-options" class="track-options"></div>
+      <div class="race-options"><label>圈数<select id="laps"><option value="3">3 圈 · 标准赛</option><option value="2">2 圈 · 短程赛</option></select></label><label>人机难度<select id="difficulty"><option value="normal">赛道挑战</option><option value="easy">入门练习</option></select></label><label class="check-label"><input id="auto-throttle" type="checkbox" checked>自动油门</label></div>
+      <div class="race-rules"><label for="rules">比赛规则</label><select id="rules"><option value="circuit">赛道竞速 · 纯粹驾驶</option><option value="arcade">道具竞速 · 经典玩法</option></select><span id="rules-note">弯道走线 · 直线连续加速</span></div>
+      <div class="mode-tabs" role="group" aria-label="比赛模式"><button data-mode="solo" class="active">单人竞速 <span>1 人 + 5 AI</span></button><button data-mode="lan">双人联机 <span>2 人 + 4 AI</span></button></div>
       <div id="lan-settings" hidden><div class="room-fields"><label>车手昵称<input id="nickname" maxlength="12" placeholder="少年车手" autocomplete="off"></label><label>房间号<input id="room-code" maxlength="8" inputmode="numeric" pattern="[0-9]*" placeholder="例如 2026" autocomplete="off"></label></div><p class="lan-note">同一 Wi-Fi · 打开同一电脑地址 · 输入相同房间号</p></div>
-      <button id="start" class="start-button"><span id="start-text">出发，上赛道</span><span>↗</span></button><p class="setup-footnote">无需下载 · 横屏更尽兴 · 手机触控 / 键盘均可</p>
+      <button id="start" class="start-button"><span id="start-text">进入赛道</span><span>↗</span></button><p class="setup-footnote">无需下载 · 横屏更尽兴 · 手机触控 / 键盘均可</p>
     </section>
   </div>
-  <footer class="garage-footer"><span>BUILT FOR THE JOY OF RACING.</span><span>漂移蓄能 <i>／</i> 道具对决 <i>／</i> 局域网双人</span></footer>
+  <footer class="garage-footer"><span>BUILT FOR THE DRIVER.</span><span>抓地与制动 <i>／</i> 自动换挡 <i>／</i> 局域网双人</span></footer>
 </main>
 <section id="race-screen" hidden aria-label="赛车比赛">
   <div id="race-view"></div><div id="speed-lines"></div><div id="hit-flash"></div>
-  <div class="hud-top"><div class="position-card"><span id="position">6</span><small>/ 6<em>POSITION</em></small></div><div class="lap-card"><span id="hud-track">晴空海岸</span><strong id="lap">第 1 / 3 圈</strong></div><div class="timer-card"><span id="race-time">00:00.00</span><small id="best-lap">首次出征</small></div><button id="pause" class="hud-button" aria-label="暂停或比赛菜单">Ⅱ</button></div>
+  <div class="hud-top"><div class="position-card"><span id="position">6</span><small>/ 6<em>POSITION</em></small></div><div class="lap-card"><span id="hud-track">海岸公路</span><strong id="lap">第 1 / 3 圈</strong></div><div class="timer-card"><span id="race-time">00:00.00</span><small id="best-lap">计时圈待记录</small></div><button id="camera" class="hud-button camera-button" aria-label="切换驾驶视角">跟车</button><button id="pause" class="hud-button" aria-label="暂停或比赛菜单">Ⅱ</button></div>
   <div class="race-side"><canvas id="minimap" width="240" height="180" aria-label="赛道小地图"></canvas><div id="leaderboard"></div></div>
   <div id="race-message" role="status"></div><div id="countdown"></div><div id="spectating" hidden>已冲线 · 等待其他车手</div>
-  <div class="speedometer"><div><strong id="speed">0</strong><span>km/h</span></div><div class="nitro-track"><i id="nitro-fill"></i></div><small id="nitro-label">NITRO 55%</small></div>
-  <div class="touch-controls" id="touch-controls"><div class="steering"><div class="joystick" id="joy-steer" role="group" aria-label="转向摇杆"><div class="joy-ring"></div><span class="joy-knob" id="joy-steer-knob"></span></div></div><div class="actions"><button data-control="item" class="control item-button"><b id="item-icon">◇</b><span id="item-name">等待道具</span></button><button data-control="drift" class="control drift-button">漂移<small>DRIFT</small></button><button data-control="nitro" class="control nitro-button">↟<small>氮气</small></button><button data-control="throttle" id="throttle-button" class="control throttle-button" hidden>油门</button></div></div>
-  <div class="keyboard-hint">← → 转向　空格 漂移　Shift 氮气　E 道具　↓ 刹车　Esc 菜单</div>
+  <div class="speedometer"><div class="drive-meta"><span id="gear">N</span><span id="drive-state">READY</span><small id="quality-label">自动画质</small></div><div class="speed-value"><strong id="speed">0</strong><span>km/h</span></div><div class="rpm-track"><i id="rpm-fill"></i></div><small id="rpm-label">900 RPM</small><div class="nitro-track"><i id="nitro-fill"></i></div><small id="nitro-label">NITRO 55%</small></div>
+  <div class="touch-controls" id="touch-controls"><div class="steering"><div class="joystick" id="joy-steer" role="group" aria-label="转向摇杆"><div class="joy-ring"></div><span class="joy-knob" id="joy-steer-knob"></span></div></div><div class="actions"><button class="control brake-button" data-control="brake"><span>刹车</span><small>BRAKE</small></button><button data-control="item" class="control item-button"><b id="item-icon">◇</b><span id="item-name">等待道具</span></button><button data-control="drift" class="control drift-button">漂移<small>DRIFT</small></button><button data-control="nitro" class="control nitro-button">↟<small>加速</small></button><button data-control="throttle" id="throttle-button" class="control throttle-button" hidden>油门</button></div></div>
+  <div class="keyboard-hint">← → / A D 转向　↓ / S 刹车　空格 漂移　Shift 加速　C 视角　Esc 菜单</div>
 </section>
 <div id="toast" role="alert" hidden></div>
-<dialog id="help-dialog"><button class="dialog-close" data-close="help-dialog" aria-label="关闭">×</button><span class="eyebrow">DRIVER'S HANDBOOK</span><h2>第一圈，从这里开始。</h2><div class="help-grid"><article><b>01 / 掌握方向</b><p>默认自动油门，左手按住左右箭头转向。右手同时按住「漂移」，松手后可获得氮气。关闭自动油门后，按住「油门」或键盘 ↑ / W 加速。</p></article><article><b>02 / 抢占先机</b><p>蓝绿色箭头是加速带，金色方块是道具箱。按「道具」释放：超级氮气加速、油污留在身后、脉冲减速前方 65 米车辆、护盾防撞 6 秒。</p></article><article><b>03 / 碰撞有代价</b><p>撞车、撞护栏、撞路障都会损失速度并产生推挤。重装越野更耐撞。避开紫黑色油污，完成全部圈数按冲线顺序排名。</p></article><article><b>04 / 和朋友比赛</b><p>电脑运行游戏服务，两台手机连同一 Wi-Fi，打开电脑的局域网地址。输入同一个 4–8 位房间号，双方准备后房主发车；赛道、圈数和难度以房主为准。</p></article></div><p class="dialog-tip">推荐手机横屏；支持多指同时按键。单人可以暂停，联机打开菜单时比赛继续。第一名冲线后最多等待 35 秒，未完成显示 DNF。</p><button class="secondary-button" data-close="help-dialog">知道了，去兜风</button></dialog>
-<dialog id="room-dialog"><span class="eyebrow">LOCAL MULTIPLAYER</span><h2>集结，准备出发。</h2><div class="room-badge">ROOM <strong id="room-number"></strong></div><p id="room-track"></p><div id="room-players"></div><p id="room-status">等待好友加入…</p><div class="dialog-actions"><button id="leave-room" class="secondary-button">离开房间</button><button id="ready" class="primary-button">我准备好了</button><button id="room-start" class="primary-button" hidden>发车 ↗</button></div></dialog>
-<dialog id="pause-dialog"><span class="eyebrow">TAKE A BREATH</span><h2 id="pause-title">休息一下。</h2><p id="pause-description">比赛已暂停，准备好再出发。</p><div class="dialog-actions"><button id="quit" class="secondary-button">返回车库</button><button id="resume" class="primary-button">继续比赛</button></div></dialog>
-<dialog id="result-dialog"><span class="eyebrow">THE FINISH LINE</span><h2 id="result-title">漂亮的一场比赛！</h2><p id="result-subtitle"></p><div id="result-list"></div><div class="dialog-actions"><button id="result-back" class="secondary-button">返回车库</button><button id="again" class="primary-button">再跑一场 ↗</button></div></dialog>
+<dialog id="help-dialog"><button class="dialog-close" data-close="help-dialog" aria-label="关闭">×</button><span class="eyebrow">DRIVER'S HANDBOOK</span><h2>第一圈，从这里开始。</h2><div class="help-grid"><article><b>01 / 掌握方向</b><p>默认自动油门，左手拖动摇杆平滑转向；右手按住「刹车」在入弯前减速。键盘 A / D 或左右键转向，S / ↓ 刹车，W / ↑ 油门。关闭自动油门可手动控制加速。</p></article><article><b>02 / 抢占先机</b><p>默认赛道竞速没有道具和路障，新增 320 米直线与三个连续加速带，沿箭头走线即可触发。高速入弯会降低抓地，松油门或刹车后再转向。自动换挡、转速、车身倾斜与引擎声音会反馈驾驶状态。点击「跟车」或按 C 切换引擎盖视角。</p></article><article><b>03 / 碰撞有代价</b><p>撞车与擦碰护栏会损失速度并产生推挤，长轴距 GT 更耐撞。可选择经典道具竞速：收集补给箱、使用道具；该模式中漂移松手可获得加速蓄能。完成全部圈数按实际冲线时刻排名。</p></article><article><b>04 / 和朋友比赛</b><p>电脑运行游戏服务，两台手机连同一 Wi-Fi，打开电脑的局域网地址。输入同一个 4–8 位房间号，双方准备后房主发车；赛道、圈数和难度以房主为准。</p></article></div><p class="dialog-tip">推荐手机横屏；支持多指同时按键。单人可以暂停，联机打开菜单时比赛继续。第一名冲线后最多等待 35 秒，未完成显示 DNF。</p><button class="secondary-button" data-close="help-dialog">了解，进入车库</button></dialog>
+<dialog id="room-dialog"><span class="eyebrow">LOCAL MULTIPLAYER</span><h2>房间已就绪</h2><div class="room-badge">ROOM <strong id="room-number"></strong></div><p id="room-track"></p><div id="room-players"></div><p id="room-status">等待好友加入…</p><div class="dialog-actions"><button id="leave-room" class="secondary-button">离开房间</button><button id="ready" class="primary-button">我准备好了</button><button id="room-start" class="primary-button" hidden>发车 ↗</button></div></dialog>
+<dialog id="pause-dialog"><span class="eyebrow">RACE CONTROL</span><h2 id="pause-title">休息一下。</h2><p id="pause-description">比赛已暂停，准备好再出发。</p><div class="dialog-actions"><button id="race-sound" class="secondary-button">开启音效</button><button id="quit" class="secondary-button">返回车库</button><button id="resume" class="primary-button">继续比赛</button></div></dialog>
+<dialog id="result-dialog"><span class="eyebrow">THE FINISH LINE</span><h2 id="result-title">比赛成绩已记录</h2><p id="result-subtitle"></p><div id="result-list"></div><div class="dialog-actions"><button id="result-back" class="secondary-button">返回车库</button><button id="again" class="primary-button">再跑一场 ↗</button></div></dialog>
 <script type="module" src="/src/game.js"></script>
 </body></html>

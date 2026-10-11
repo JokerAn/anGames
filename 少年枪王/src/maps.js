@@ -43,9 +43,9 @@ const desert = scale([
   {x:8,z:16,w:3,d:2,h:1.3,color:'#e9c8a3',type:'ruin'},
 ]);
 export const MAPS = {
-  blocks:{id:'blocks',name:'积木乐园',tag:'经典 · 多路交锋',description:'穿过彩色积木，和伙伴快乐出击。',sky:'#c5dfcf',preview:'#dfe9db',ground:'#b7cba0',path:'#d7d5b3',trim:'#f5e8c9',obstacles:blocks},
-  harbor:{id:'harbor',name:'海港仓库',tag:'海风 · 巷道穿梭',description:'绕过集装箱，在海风中并肩作战。',sky:'#c2dce7',preview:'#dce9ed',ground:'#bdc9c9',path:'#e0d9ba',trim:'#e9e5d6',obstacles:harbor},
-  desert:{id:'desert',name:'沙漠遗迹',tag:'暖沙 · 石阵探险',description:'探索古老石阵，寻找你的制胜路线。',sky:'#eddcca',preview:'#efe6d5',ground:'#dfc493',path:'#ebd8b2',trim:'#f0dbb0',obstacles:desert},
+  blocks:{id:'blocks',name:'霓虹前哨',tag:'城市 / 多线交锋',description:'穿过装甲掩体，切断敌人的推进路线。',sky:'#15273a',preview:'#111f2e',ground:'#263544',path:'#344656',trim:'#6ae3d0',accent:'#6ae3d0',obstacles:blocks},
+  harbor:{id:'harbor',name:'深蓝港区',tag:'港口 / 侧翼突袭',description:'暮色下的集装箱战场。控住通道，抢占先机。',sky:'#152536',preview:'#101e2d',ground:'#2a3949',path:'#3a4756',trim:'#89c5e8',accent:'#70decf',obstacles:harbor},
+  desert:{id:'desert',name:'落日遗迹',tag:'荒漠 / 远近博弈',description:'在夕照与阴影之间，寻找下一条进攻路线。',sky:'#735d55',preview:'#5c4944',ground:'#9f8267',path:'#ad9278',trim:'#ffc78d',accent:'#ffc78d',obstacles:desert},
 };
 for(const map of Object.values(MAPS)){map.obstacles.forEach(Object.freeze);Object.freeze(map.obstacles);Object.freeze(map);}Object.freeze(MAPS);
 export function getMap(id='blocks'){return Object.hasOwn(MAPS,id)?MAPS[id]:MAPS.blocks;}

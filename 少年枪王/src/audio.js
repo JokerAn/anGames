@@ -1,6 +1,6 @@
 import { WEAPONS, clamp } from './simulation.js';
 export class GameAudio {
-  constructor(){this.volume=.65;this.muted=false;this.music=true;this.playing=false;this.beat=0;this.lastStep=0;this.timer=null;}
+  constructor(){this.volume=.65;this.muted=false;this.music=false;this.playing=false;this.beat=0;this.lastStep=0;this.timer=null;}
   async unlock(){
     try{
       if(!this.ctx){const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;this.ctx=new Audio();this.master=this.ctx.createGain();const compressor=this.ctx.createDynamicsCompressor();compressor.threshold.value=-18;compressor.ratio.value=5;this.master.connect(compressor);compressor.connect(this.ctx.destination);this.master.gain.value=this.muted?0:this.volume*.48;
@@ -23,6 +23,8 @@ export class GameAudio {
     const t=this.ctx.currentTime,source=this.ctx.createBufferSource(),filter=this.ctx.createBiquadFilter(),amp=this.ctx.createGain();source.buffer=this.noise;filter.type='bandpass';filter.frequency.value=freq;filter.Q.value=.8;amp.gain.setValueAtTime(gain,t);amp.gain.exponentialRampToValueAtTime(.001,t+duration);source.connect(filter);filter.connect(amp);amp.connect(this.master);source.start(t);source.stop(t+duration);source.onended=()=>{source.disconnect();filter.disconnect();amp.disconnect();};
   }
   shot(weapon,volume=1,pan=0){const w=WEAPONS[weapon];if(!w)return;this.tone(w.sound,.12,{gain:.24*volume,end:w.sound*.35,type:'triangle',pan});this.tone(w.sound*2,.065,{gain:.08*volume,end:w.sound*.8,pan});this.puff(weapon==='shotgun'?450:1300,.14*volume,weapon==='shotgun'?.2:.07);}
+  reload(){this.puff(1600,.09,.08);this.tone(300,.07,{gain:.05,type:'square',end:160});this.tone(600,.04,{gain:.04,delay:.13,end:420});}
+  dash(){this.puff(700,.09,.22);this.tone(120,.16,{gain:.07,end:45});}
   hit(){this.tone(950,.075,{gain:.13,end:1400});this.tone(1500,.1,{gain:.08,delay:.03,end:1800});}
   pop(){[660,880,1320].forEach((f,i)=>this.tone(f,.2,{gain:.18,delay:i*.055,type:'triangle'}));this.puff(2200,.13,.15);}
   hurt(){this.tone(220,.15,{gain:.15,end:150});}
