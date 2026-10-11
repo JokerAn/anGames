@@ -60,7 +60,7 @@ function begin(index=0,keep=false){
   $('welcome').hidden=true;$('scene-caption').hidden=true;$('bottom-note').hidden=true;$('hud').hidden=false;
   $('game-shell').classList.add('playing');$('game-shell').classList.toggle('night',!!state.level.theme.night);$('pause-button').disabled=false;
   $('level-label').innerHTML=`${String(index+1).padStart(2,'0')}/${String(LEVEL_COUNT).padStart(2,'0')} <i>/</i> ${state.level.theme.name}`;updateDifficultyUI();
-  updateHud();notify(`${MODES[state.difficulty].name}模式 · ${state.level.hint}`);needsRender=true;
+  updateHud();notify(`${MODES[state.difficulty].name}模式 · ${state.level.hint}`);needsRender=true;armBackGuard();
 }
 function home(){
   closeModal();clearInput();state.mode='home';state.level=createLevel(0);state.player=null;state.camera=0;state.particles=[];state.floaters=[];state.ammo=0;state.projectiles=[];updateHud();
@@ -165,7 +165,9 @@ function updateShooting(dt){
   const p=state.player,l=state.level;
   const requested=input.has('shoot')||shootQueued;shootQueued=false;
   if(requested&&p.shotCooldown<=0&&state.projectiles.length<MAX_PROJECTILES){
-    const y=p.y+p.h-(p.crouch?18:40),x=p.x+p.w/2+p.facing*31;
+    // Spawn from the drawn muzzle: the blaster is rendered at p.y+p.h-23
+    // (crouching -15), so the shot must leave from there — not 17px higher.
+    const y=p.y+p.h-(p.crouch?15:23),x=p.x+p.w/2+p.facing*31;
     state.projectiles.push({x,y,originX:p.x+p.w/2,vx:p.facing*BULLET_SPEED,life:BULLET_LIFETIME});
     p.shotCooldown=SHOT_COOLDOWN;p.shotFlash=.09;sound.play('shoot');
   }
@@ -466,4 +468,13 @@ $('fullscreen-button').onclick=async()=>{
 document.addEventListener('fullscreenchange',()=>{$('fullscreen-button').setAttribute('aria-label',document.fullscreenElement?'退出全屏':'进入全屏');resize();});
 // Opt-in diagnostics: inert in ordinary play and scoped to this game's page.
 if(new URLSearchParams(location.search).has('debug'))window.__windy={state,input,view,begin,physics,hurt,finish,art,sound,resize,showMap,showWin};
+// Old phones treat an edge drag as back/forward navigation, which yanks the player
+// out mid-level. Swallow horizontal edge swipes over the game area.
+const EDGE=28;
+document.addEventListener('touchmove',event=>{if(state.mode!=='playing')return;const t=event.touches[0];if(!t)return;if(t.clientX<EDGE||t.clientX>innerWidth-EDGE)event.preventDefault();},{passive:false});
+// Keep a sentinel history entry so the hardware/gesture back pauses the level
+// instead of leaving the page entirely.
+let backArmed=false;
+function armBackGuard(){if(backArmed)return;backArmed=true;history.pushState({screen:'level'},'');}
+window.addEventListener('popstate',()=>{if(state.mode==='playing'||state.mode==='paused'){backArmed=false;pause();armBackGuard();}});
 requestAnimationFrame(tick);

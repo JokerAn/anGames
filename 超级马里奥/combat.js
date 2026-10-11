@@ -35,9 +35,14 @@ export function horizontalImpact(fromX,toX,y,target,halfWidth=7,halfHeight=4){
 // Highest solid surface at/below the shot's column, so it can land and bounce.
 // In this level format a solid's TOP face is `y` and it extends DOWN by `h`
 // (ground blocks are {y:550,h:500}), so the surface a fireball hops on is `y`.
-function supportTop(blockers,x){
+// `fromY` is the shot's current height: only surfaces at or BELOW it (screen Y
+// grows downward, so wall.y >= fromY) can catch the fall. An overhead brick's
+// top must never capture a bullet flying beneath it.
+function supportTop(blockers,x,fromY){
   let top=Infinity;
-  for(const wall of blockers){if(x>=wall.x-6&&x<=wall.x+wall.w+6&&wall.y<top)top=wall.y;}
+  for(const wall of blockers){
+    if(x>=wall.x-6&&x<=wall.x+wall.w+6&&wall.y<top&&wall.y>=fromY-2)top=wall.y;
+  }
   return top;
 }
 
@@ -64,18 +69,19 @@ export function advanceProjectiles(projectiles,blockers,enemies,dt){
       // Classic fireball hop: gravity pulls the shot down and it bounces off the
       // ground, skipping along the track. Screen Y grows downward, so "on the
       // ground" means a LARGER y than the surface's top face (`wall.y`).
-      const top=supportTop(blockers,toX);
+      const top=supportTop(blockers,toX,y);
       let nextY=toY,nextVy=vy+BULLET_GRAVITY*step;
       if(nextY>=top&&vy>=0){nextY=top;nextVy=-Math.abs(vy||BULLET_BOUNCE);}
       let first=null;
       for(const wall of blockers){
         const time=sweptImpact(segX,segY,toX,nextY,wall);
         if(time===null)continue;
-        const iy=segY+(nextY-segY)*time;
+        const iy=segY+(nextY-segY)*time, ix=segX+(toX-segX)*time;
         const bottom=wall.y+(wall.h??wall.height??0);
-        // Landing on a top/bottom face is the hop, not a fatal wall. Only a SIDE
-        // face stops the shot, so the fireball survives its own bounces.
-        if(Math.abs(iy-wall.y)<5||Math.abs(iy-bottom)<5)continue;
+        // Only a genuine SIDE face stops the shot. A contact near the top or
+        // bottom edge is the fireball skimming the surface it hops on, so it
+        // passes through and bounces instead of dying on its own hop.
+        if(iy<=wall.y+6||iy>=bottom-6)continue;
         if(!first||time<first.time)first={time,kind:'wall',wall};
       }
       for(const enemy of enemies){
