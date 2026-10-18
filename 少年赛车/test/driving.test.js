@@ -1,22 +1,39 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRace,stepRace,cleanInput} from '../src/simulation.js';
+import {syncVehiclePose} from '../src/driving.js';
 import {getTrack,TRACKS,ROAD_HALF} from '../src/tracks.js';
 function isolated(rules='circuit',track='coast'){const race=createRace({rules,track});race.time=1;race.racers.slice(1).forEach(r=>r.finishTime=0);return race;}
 function advance(race,seconds){for(let i=0;i<Math.round(seconds*60);i++)stepRace(race,1/60);}
-test('默认竞速启用加速带，但不会触发道具、路障或油污',()=>{
-  const race=isolated(),me=race.racers[0];assert.equal(createRace().rules,'circuit');assert.equal(createRace({rules:'invalid'}).rules,'circuit');
-  for(const o of getTrack('coast').objects){Object.assign(me,{s:o.s,x:o.x,v:20,input:{throttle:false},slow:0,boost:0,boostContacts:{}});stepRace(race,1/60);assert.equal(me.item,null);assert.equal(me.slow,0);if(o.type==='boost'){assert.equal(me.boost,3.7);assert.equal(me.boosting,true);}else assert.equal(me.boost,0);}
-  assert.ok(!race.events.some(e=>e.type==='pickup'));assert.ok(race.events.some(e=>e.type==='boost'));
+test('默认竞速与时间赛在道路物件处无输入不会自动发射，只有街机加速带生效',()=>{
+  assert.equal(createRace().rules,'circuit');assert.equal(createRace({rules:'invalid'}).rules,'circuit');
+  for(const rules of ['circuit','timeattack'])for(const config of TRACKS){
+    const track=getTrack(config.id);
+    for(const o of track.objects){
+      const race=isolated(rules,config.id),me=race.racers[0];
+      Object.assign(me,{s:o.s,x:o.x,v:0,input:{}});syncVehiclePose(me,track);
+      const start={s:me.s,x:me.x};advance(race,.6);
+      assert.equal(me.v,0,`${rules}/${config.id}/${o.id} must stay parked`);
+      assert.ok(Math.abs(me.s-start.s)<.01&&Math.abs(me.x-start.x)<.01);
+      assert.equal(me.boost,0);assert.equal(me.boosting,false);assert.equal(me.item,null);assert.equal(me.slow,0);
+      assert.ok(!race.events.some(e=>['boost','pickup','hit'].includes(e.type)));
+    }
+  }
+  for(const config of TRACKS){
+    const track=getTrack(config.id),race=isolated('arcade',config.id),me=race.racers[0],pad=track.objects.find(o=>o.type==='boost');
+    Object.assign(me,{s:pad.s,x:pad.x,v:0,input:{}});syncVehiclePose(me,track);stepRace(race,1/60);
+    assert.equal(me.boost,3.7);assert.equal(me.boosting,true);assert.ok(me.v>=7);
+    assert.equal(race.events.filter(e=>e.type==='boost').length,1);
+  }
 });
 test('刹车比松油门更快降速，同时覆盖油门与氮气',()=>{
   const coast=isolated(),brake=isolated();for(const race of [coast,brake])Object.assign(race.racers[0],{s:0,x:0,v:40});
   coast.racers[0].input={throttle:false};brake.racers[0].input={throttle:true,brake:true,nitro:true};advance(coast,.4);advance(brake,.4);
   assert.ok(brake.racers[0].v<coast.racers[0].v-8);assert.equal(brake.racers[0].boosting,false);assert.equal(brake.racers[0].braking,true);assert.equal(cleanInput({brake:true}).throttle,false);
 });
-test('高速弯道抓地极限降低速度；坡度、换挡、转速状态有限',()=>{
+test('高速主动转弯超过抓地极限会降速；坡度、换挡、转速状态有限',()=>{
   for(const config of TRACKS){const race=isolated('circuit',config.id),me=race.racers[0],track=getTrack(config.id);let corner=0;for(let s=0;s<track.length;s+=3)if(Math.abs(track.curvature(s))>Math.abs(track.curvature(corner)))corner=s;
-    Object.assign(me,{s:corner,x:0,v:55,input:{throttle:true}});stepRace(race,1/60);assert.ok(me.gripUsage>1);assert.ok(me.acceleration<0);assert.ok(Number.isFinite(me.rpm+me.gear+me.acceleration+track.slope(corner)));assert.ok(me.gear>=1&&me.gear<=6);
+    Object.assign(me,{s:corner,x:0,v:55,steerAngle:1,input:{throttle:true,steer:1}});syncVehiclePose(me,track);stepRace(race,1/60);assert.ok(me.gripUsage>1);assert.ok(me.acceleration<0);assert.ok(Number.isFinite(me.rpm+me.gear+me.acceleration+track.slope(corner)));assert.ok(me.gear>=1&&me.gear<=6);
   }
 });
 test('纯竞速漂移没有释放奖励，电驱保持单挡',()=>{

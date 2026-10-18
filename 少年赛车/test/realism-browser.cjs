@@ -17,7 +17,7 @@ const artifacts=path.join(__dirname,'artifacts');
     await p.locator('#sound').tap();assert.equal(await p.locator('#sound span').textContent(),'音效开');await p.locator('#sound').tap();assert.equal(await p.locator('#sound span').textContent(),'音效关');
     assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
     await p.screenshot({path:path.join(artifacts,'realism-garage-mobile.png'),fullPage:true});
-    await p.locator('#auto-throttle').uncheck();await p.locator('#start').tap();await p.waitForTimeout(4100);assert.equal(await p.evaluate(()=>__racerDebug.racers[0].v),0);assert.equal(await p.locator('[data-control="item"]').isVisible(),false);
+    assert.equal(await p.locator('#auto-throttle').isEnabled(),false);await p.locator('#start').tap();await p.waitForTimeout(4100);assert.equal(await p.evaluate(()=>__racerDebug.racers[0].v),0);assert.equal(await p.locator('[data-control="item"]').isVisible(),false);
     const client=await context.newCDPSession(p);
     const point=async selector=>{const box=await p.locator(selector).boundingBox();return {x:box.x+box.width/2,y:box.y+box.height/2};};
     const throttle=await point('#throttle-button');
@@ -25,7 +25,7 @@ const artifacts=path.join(__dirname,'artifacts');
     const joy=await point('#joy-steer'),brake=await point('[data-control="brake"]'),nitro=await point('[data-control="nitro"]');
     await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:joy.x+25,y:joy.y,id:2},{...brake,id:3},{...nitro,id:4}]});await p.waitForTimeout(250);
     const input=await p.evaluate(()=>__racerDebug.input);assert.ok(input.steer<0);assert.equal(input.brake,true);assert.equal(input.nitro,true);assert.equal(input.throttle,false);assert.equal(await p.evaluate(()=>__racerDebug.racers[0].braking),true);
-    await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await p.waitForTimeout(100);assert.equal(await p.evaluate(()=>__racerDebug.input.steer),0);assert.equal(await p.evaluate(()=>__racerDebug.input.brake),false);
+    await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await client.detach();await p.waitForTimeout(100);assert.equal(await p.evaluate(()=>__racerDebug.input.steer),0);assert.equal(await p.evaluate(()=>__racerDebug.input.brake),false);
     await p.screenshot({path:path.join(artifacts,'realism-race-mobile-portrait.png')});
     await p.locator('#camera').tap();assert.equal(await p.evaluate(()=>__racerDebug.render.camera),'bonnet');await p.screenshot({path:path.join(artifacts,'realism-bonnet-mobile.png')});
     await p.locator('#camera').tap();await p.setViewportSize({width:844,height:390});await p.screenshot({path:path.join(artifacts,'realism-race-mobile-landscape.png')});
@@ -34,7 +34,7 @@ const artifacts=path.join(__dirname,'artifacts');
     // Context loss must pause safely, restoration must allow continued play.
     await p.evaluate(()=>{window.lostGL=document.querySelector('#race-view canvas').getContext('webgl2').getExtension('WEBGL_lose_context');lostGL.loseContext();});await p.locator('#pause-dialog').waitFor({state:'visible'});await p.waitForTimeout(200);await p.evaluate(()=>lostGL.restoreContext());await p.waitForTimeout(700);await p.locator('#resume').tap();assert.equal(await p.evaluate(()=>__racerDebug.paused),false);
     await p.locator('#pause').tap();await p.locator('#quit').tap();
-    for(const track of ['canyon','neon']){await p.locator(`[data-track="${track}"]`).tap();await p.locator('#auto-throttle').check();await p.locator('#start').tap();await p.waitForTimeout(4200);await p.screenshot({path:path.join(artifacts,`realism-${track}-mobile.png`)});report.push({case:track,...await p.evaluate(()=>__racerDebug.render)});await p.locator('#pause').tap();await p.locator('#quit').tap();}
+    for(const track of ['canyon','neon']){await p.locator(`[data-track="${track}"]`).tap();await p.locator('#start').tap();await p.waitForFunction(()=>__racerDebug.status==='racing');await p.keyboard.down('KeyW');await p.waitForTimeout(600);await p.keyboard.up('KeyW');assert.ok(await p.evaluate(()=>__racerDebug.racers.find(r=>r.id===__racerDebug.playerId).v)>5);await p.screenshot({path:path.join(artifacts,`realism-${track}-mobile.png`)});report.push({case:track,...await p.evaluate(()=>__racerDebug.render)});await p.locator('#pause').tap();await p.locator('#quit').tap();}
     // Fixed camera/car templates should not leak geometry or textures on rematch.
     await p.locator('[data-track="coast"]').tap();await p.locator('#start').tap();await p.waitForTimeout(500);const before=await p.evaluate(()=>__racerDebug.render);
     for(let i=0;i<4;i++){await p.locator('#pause').tap();await p.locator('#quit').tap();await p.locator('#start').tap();await p.waitForTimeout(350);}

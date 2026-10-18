@@ -1,3 +1,22 @@
 node_modules/
 .DS_Store
 *.log
+
+# Local presentation checks and synthesized audio previews
+test/artifacts/before-*
+test/artifacts/feel-*
+test/artifacts/engine-*.wav
+test/artifacts/audio-results.json
+test/artifacts/presentation-results.json
+
+# Local arcade handling and responsive camera evidence
+test/artifacts/handling-*
+
+# Local neon arcade screenshots and driving evidence
+test/artifacts/neon-*
+
+# Premium graphics pass: local captures, motion clips and inspector reports
+test/artifacts/premium/
+
+# Local manual-driving capture output
+test/artifacts/manual-*

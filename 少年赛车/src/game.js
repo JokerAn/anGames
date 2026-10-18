@@ -3,13 +3,19 @@ import {createRace,stepRace,ITEMS} from './simulation.js';
 import {RaceRenderer} from './renderer.js';
 import {Controls} from './controls.js';
 import {AudioEngine} from './audio.js';
+import {RaceHud} from './race-hud.js';
+import {cornerAdvice} from './driving.js';
+import {GhostRecorder} from './ghost.js';
+import {driftFeedback} from './drift.js';
+import {itemPreview} from './items.js';
 const $=id=>document.getElementById(id);
-const controls=new Controls(),audio=new AudioEngine();
+const controls=new Controls(),audio=new AudioEngine(),ghost=new GhostRecorder();let ghostEnabled=true;
+const raceHud=new RaceHud({onReset:()=>controls.requestReset(),onRestart:()=>{if(mode==='solo'&&gameActive)startSolo();else toast('联机比赛请返回房间后重新准备');},onGhost:()=>{ghostEnabled=!ghostEnabled;save();updateHudGhost();}});
 let graphics, mode='solo',race=null,playerId='local',paused=false,ws=null,lobby=null,joined=false,lastStateAt=0,lastEvent=0,lastCount='',resultShown=false,gameActive=false;
-let choice={car:'comet',engine:'balanced',track:'coast',laps:3,difficulty:'normal',rules:'circuit'},saved={};
-try{saved=JSON.parse(localStorage.getItem('junior-racers')||'{}');if(!saved||typeof saved!=='object'||Array.isArray(saved))saved={};if(CARS.some(c=>c.id===saved.car))choice.car=saved.car;if(ENGINES.some(c=>c.id===saved.engine))choice.engine=saved.engine;if(TRACKS.some(c=>c.id===saved.track))choice.track=saved.track;$('nickname').value=String(saved.name||'').slice(0,12);$('auto-throttle').checked=saved.controlVersion===2&&saved.autoThrottle===true;if(saved.laps===2)choice.laps=2;if(saved.difficulty==='easy')choice.difficulty='easy';$('laps').value=String(choice.laps);$('difficulty').value=choice.difficulty;if(saved.rules==='arcade')choice.rules='arcade';$('rules').value=choice.rules;}catch{}
+let choice={car:'comet',engine:'balanced',track:'coast',laps:2,difficulty:'normal',rules:'circuit'},saved={};
+try{saved=JSON.parse(localStorage.getItem('junior-racers')||'{}');if(!saved||typeof saved!=='object'||Array.isArray(saved))saved={};if(CARS.some(c=>c.id===saved.car))choice.car=saved.car;if(ENGINES.some(c=>c.id===saved.engine))choice.engine=saved.engine;if(TRACKS.some(c=>c.id===saved.track))choice.track=saved.track;$('nickname').value=String(saved.name||'').slice(0,12);ghostEnabled=saved.ghost!==false;$('auto-throttle').checked=false;if(saved.controlVersion===3&&saved.laps===3)choice.laps=3;if(saved.difficulty==='easy')choice.difficulty='easy';$('laps').value=String(choice.laps);$('difficulty').value=choice.difficulty;if(['arcade','timeattack'].includes(saved.rules))choice.rules=saved.rules;$('rules').value=choice.rules;}catch{}
 audio.enabled=saved.sound===true;$('sound').querySelector('span').textContent=audio.enabled?'音效开':'音效关';$('sound').setAttribute('aria-label',audio.enabled?'关闭音效':'开启音效');
-function save(){try{localStorage.setItem('junior-racers',JSON.stringify({...choice,name:$('nickname').value,controlVersion:2,autoThrottle:$('auto-throttle').checked,sound:audio.enabled}));}catch{}}
+function save(){try{localStorage.setItem('junior-racers',JSON.stringify({...choice,name:$('nickname').value,controlVersion:3,autoThrottle:false,sound:audio.enabled,ghost:ghostEnabled,camera:graphics?.cameraMode||saved.camera||'chase'}));}catch{}}
 let toastTimer;function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,4000);}
 function carSVG(c){return `<svg viewBox="0 0 140 58" aria-hidden="true"><ellipse cx="72" cy="48" rx="57" ry="5" fill="#071321" opacity=".5"/><path d="M15 35l14-7 22-15h40l20 16 16 6v10H15z" fill="${c.color}"/><path d="M52 18h17v13H36zm21 0h16l14 13H73z" fill="#203d50"/><path d="M15 38h110v7H15z" fill="#183142"/><circle cx="38" cy="44" r="10" fill="#0c1623"/><circle cx="38" cy="44" r="5" fill="#91a9b8"/><circle cx="103" cy="44" r="10" fill="#0c1623"/><circle cx="103" cy="44" r="5" fill="#91a9b8"/><path d="M119 33h9v5h-9" fill="#eaffd8"/></svg>`;}
 function trackSVG(config){
@@ -19,9 +25,10 @@ function trackSVG(config){
   return `<svg viewBox="${b.minX-margin} ${b.minZ-margin} ${b.width+margin*2} ${b.height+margin*2}" aria-hidden="true"><polyline points="${points.join(' ')}" fill="none" stroke="${config.color}" stroke-width="9" stroke-linejoin="round"/><path d="M${a.x} ${a.z}L${end.x} ${end.z}" stroke="#d3b591" stroke-width="10"/><rect x="${start.x-8}" y="${start.z-8}" width="16" height="16" fill="#e6e0d4"/></svg>`;
 }
 function renderOptions(){
+  $('track-count').textContent=`${TRACKS.length} 条赛道`;
   $('car-options').innerHTML=CARS.map(c=>`<button class="car-option ${c.id===choice.car?'active':''}" data-car="${c.id}" aria-pressed="${c.id===choice.car}">${c.id===choice.car?'<span class="selected-check">✓</span>':''}${carSVG(c)}<strong>${c.name}</strong><small>${c.tag}</small></button>`).join('');
   $('engine-options').innerHTML=ENGINES.map(e=>`<button class="engine-option ${e.id===choice.engine?'active':''}" data-engine="${e.id}" aria-pressed="${e.id===choice.engine}"><strong>${e.name}</strong><small>${e.tag}</small></button>`).join('');
-  $('track-options').innerHTML=TRACKS.map(t=>`<button class="track-option ${t.id===choice.track?'active':''}" data-track="${t.id}" aria-pressed="${t.id===choice.track}" title="${t.desc}"><div class="track-art ${t.id}">${trackSVG(t)}</div><span class="track-level">${t.difficulty}</span><strong>${t.name}</strong><small>${t.tag}</small></button>`).join('');
+  $('track-options').innerHTML=TRACKS.map(t=>`<button class="track-option ${t.id===choice.track?'active':''}" data-track="${t.id}" aria-pressed="${t.id===choice.track}" title="${t.desc}"><div class="track-art ${t.id}">${trackSVG(t)}</div><span class="track-level">${t.id==='arcade'?'NEW · 灯光秀':t.difficulty}</span><strong>${t.name}</strong><small>${t.tag}</small></button>`).join('');
   const c=CARS.find(c=>c.id===choice.car);$('car-title').innerHTML=`${c.name} <span>0${CARS.indexOf(c)+1}</span>`;$('car-tag').textContent=c.tag;
   $('car-stats').innerHTML=c.stats.map((v,i)=>`<div class="stat"><span>${['极速','加速',choice.car==='titan'?'耐撞':'操控'][i]}</span><div class="stat-bar"><i style="width:${v}%"></i></div></div>`).join('');
   document.querySelectorAll('[data-car]').forEach(b=>b.onclick=()=>{choice.car=b.dataset.car;graphics?.setCar(choice.car);renderOptions();save();});
@@ -29,20 +36,20 @@ function renderOptions(){
   document.querySelectorAll('[data-track]').forEach(b=>b.onclick=()=>{choice.track=b.dataset.track;renderOptions();save();});
 }
 renderOptions();
-try{graphics=new RaceRenderer($('garage-view'));graphics.setCar(choice.car);$('loading').remove();}catch(error){$('loading').textContent='3D 画面启动失败，请使用支持 WebGL 2 的浏览器。';$('start').disabled=true;console.error(error);}
+try{graphics=new RaceRenderer($('garage-view'));if(['chase','bonnet','wide'].includes(saved.camera))graphics.cameraMode=saved.camera;graphics.setCar(choice.car);$('loading').remove();}catch(error){$('loading').textContent='3D 画面启动失败，请使用支持 WebGL 2 的浏览器。';$('start').disabled=true;console.error(error);}
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{if(gameActive||joined)return;if(ws)leaveRoom();mode=b.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===b));$('lan-settings').hidden=mode!=='lan';$('start-text').textContent=mode==='lan'?'创建 / 加入房间':'进入赛道';});
-$('laps').onchange=()=>{choice.laps=Number($('laps').value);save();};$('difficulty').onchange=()=>{choice.difficulty=$('difficulty').value;save();};$('auto-throttle').onchange=save;$('rules').onchange=()=>{choice.rules=$('rules').value;$('rules-note').textContent=choice.rules==='arcade'?'补给、漂移蓄能与道具对决':'弯道走线 · 直线连续加速';save();};$('rules').dispatchEvent(new Event('change'));
+$('laps').onchange=()=>{choice.laps=Number($('laps').value);save();};$('difficulty').onchange=()=>{choice.difficulty=$('difficulty').value;save();};$('auto-throttle').onchange=save;$('rules').onchange=()=>{choice.rules=$('rules').value;save();};$('rules').dispatchEvent(new Event('change'));
 $('sound').onclick=async()=>{const on=await audio.toggle();$('sound').querySelector('span').textContent=on?'音效开':'音效关';$('sound').setAttribute('aria-label',on?'关闭音效':'开启音效');$('race-sound').textContent=on?'关闭音效':'开启音效';save();};$('race-sound').onclick=()=>$('sound').click();
 $('help').onclick=()=>$('help-dialog').showModal();document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
 function send(data){if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify(data));}
 $('start').onclick=()=>{if(audio.enabled)void audio.unlock();save();if(mode==='solo')startSolo();else connect();};
 function startSolo(){playerId='local';beginRace(createRace({...choice,players:[{id:'local',car:choice.car,engine:choice.engine,name:$('nickname').value||'你'}]}));}
 function beginRace(state){
-  race=state;accumulator=0;hudAccum=0;inputAccum=0;paused=false;lastEvent=0;lastCount='';resultShown=false;gameActive=true;lastStateAt=performance.now();
+  race=state;ghost.begin(race,race.racers.find(r=>r.id===playerId));accumulator=0;hudAccum=0;inputAccum=0;paused=false;lastEvent=0;lastCount='';lastBoosting=false;resultShown=false;gameActive=true;lastStateAt=performance.now();
   document.querySelectorAll('dialog[open]').forEach(d=>d.close());$('garage').hidden=true;$('race-screen').hidden=false;$('spectating').hidden=true;
-  $('race-sound').textContent=audio.enabled?'关闭音效':'开启音效';$('camera').textContent=graphics.cameraMode==='chase'?'跟车':'引擎盖';controls.autoThrottle=$('auto-throttle').checked;controls.enabled=true;controls.reset();$('throttle-button').hidden=controls.autoThrottle;
-  $('race-screen').classList.toggle('circuit',race.rules!=='arcade');graphics.setContainer($('race-view'));graphics.setRace(race,playerId);$('hud-track').textContent=getTrack(race.trackId).name;
-  $('race-message').textContent='';$('speed-lines').style.opacity=0;window.scrollTo(0,0);armBackGuard();
+  $('race-sound').textContent=audio.enabled?'关闭音效':'开启音效';syncCameraLabel();controls.autoThrottle=false;controls.itemPress=0;controls.resetPress=0;controls.enabled=true;controls.reset();$('throttle-button').hidden=false;
+  $('race-screen').classList.toggle('circuit',race.rules!=='arcade');$('race-screen').classList.toggle('timeattack',race.rules==='timeattack');document.querySelector('[data-control="drift"]').setAttribute('aria-label',race.rules==='arcade'?'按住漂移，松开释放出弯加速，快捷键空格':'手刹漂移，快捷键空格');graphics.setContainer($('race-view'));graphics.setRace(race,playerId);graphics.warmRaceFrame(race,playerId);$('hud-track').textContent=getTrack(race.trackId).name;
+  $('race-message').textContent='';raceHud.sync(race,race.racers.find(r=>r.id===playerId),getTrack(race.trackId),cornerAdvice(getTrack(race.trackId),race.racers.find(r=>r.id===playerId).s,race.racers.find(r=>r.id===playerId)));updateHudGhost();$('speed-lines').style.opacity=0;updateHUD();window.scrollTo(0,0);armBackGuard();
 }
 function connect(){
   const room=$('room-code').value.trim();
@@ -76,7 +83,7 @@ function connect(){
       graphics.mode='garage';graphics.setContainer($('garage-view'));renderLobby();
     }
     if(msg.type==='race'&&joined)beginRace(msg.state);
-    if(msg.type==='state'&&joined&&gameActive){race=msg.state;lastStateAt=performance.now();}
+    if(msg.type==='state'&&joined&&gameActive){race=msg.state;ghost.sample(race,race.racers.find(r=>r.id===playerId));lastStateAt=performance.now();}
   };
   socket.onerror=()=>{if(ws===socket)toast('无法连接房间服务，请从电脑提供的地址打开游戏。');};
   socket.onclose=()=>{
@@ -105,7 +112,8 @@ function leaveRoom(){joined=false;send({type:'leave'});if(ws){const old=ws;ws=nu
 $('leave-room').onclick=leaveRoom;$('room-dialog').addEventListener('cancel',e=>{e.preventDefault();leaveRoom();});
 function showPause(){if(!gameActive||resultShown)return;controls.reset();controls.enabled=false;if(mode==='lan')send({type:'input',input:controls.read()});paused=mode==='solo';$('pause-title').textContent=mode==='solo'?'比赛已暂停':'比赛菜单';$('pause-description').textContent=mode==='solo'?'比赛已暂停，准备好再出发。':'联机比赛仍在继续，当前车辆会刹车停车。';$('resume').hidden=false;if(!$('pause-dialog').open)$('pause-dialog').showModal();}
 function resume(){if(!gameActive||mode==='lan'&&!joined)return;$('pause-dialog').close();paused=false;controls.enabled=true;}
-$('camera').onclick=()=>{$('camera').textContent=graphics.toggleCamera()==='chase'?'跟车':'引擎盖';};window.addEventListener('keydown',e=>{if(e.code==='KeyC'&&gameActive&&!e.repeat&&!$('pause-dialog').open)$('camera').click();});$('pause').onclick=showPause;$('resume').onclick=resume;$('pause-dialog').addEventListener('cancel',e=>{e.preventDefault();resume();});
+function syncCameraLabel(){const name={chase:'跟车',bonnet:'引擎盖',wide:'广角'}[graphics?.cameraMode]||'跟车';$('camera').textContent=name;$('camera').setAttribute('aria-label',`当前${name}视角，点击或按 C 切换`);}
+$('camera').onclick=()=>{graphics.toggleCamera();syncCameraLabel();save();};window.addEventListener('keydown',e=>{if(e.code==='KeyC'&&gameActive&&!e.repeat&&!$('pause-dialog').open)$('camera').click();});$('pause').onclick=showPause;$('resume').onclick=resume;$('pause-dialog').addEventListener('cancel',e=>{e.preventDefault();resume();});
 window.addEventListener('keydown',e=>{if(e.code==='Escape'&&gameActive&&!resultShown){e.preventDefault();$('pause-dialog').open?resume():showPause();}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){audio.update(null,false);if(gameActive){controls.reset();showPause();}}});
 document.addEventListener('graphics-quality',e=>{$('garage-quality').textContent=`自动画质 · ${e.detail}`;$('quality-label').textContent=e.detail;});if(graphics){$('garage-quality').textContent=`自动画质 · ${graphics.quality.name}`;$('quality-label').textContent=graphics.quality.name;}
@@ -129,24 +137,33 @@ function drawMap(){
 function updateHUD(){
   if(!race)return;const me=race.racers.find(r=>r.id===playerId);if(!me)return;
   $('position').textContent=me.rank;$('lap').textContent=`第 ${Math.min(me.lap,race.laps)} / ${race.laps} 圈`;$('race-time').textContent=formatTime(me.finishTime??race.time);$('best-lap').textContent=me.bestLap?`最快单圈 ${formatTime(me.bestLap)}`:mode==='lan'?'LAN · 实时同步':'计时圈待记录';
-  $('speed').textContent=Math.round(me.v*3.6);$('gear').textContent=me.v<.8?'N':me.engine==='electric'?'D':String(me.gear||1);$('rpm-fill').style.width=`${clamp((me.rpm||900)/7800*100,0,100)}%`;$('rpm-fill').classList.toggle('redline',(me.rpm||0)>6200);$('rpm-label').textContent=`${Math.round((me.rpm||900)/100)*100} RPM`;$('drive-state').textContent=me.braking?'BRAKING':me.drifting?'DRIFT':me.gripUsage>1.1?'GRIP LIMIT':me.boosting?'BOOST':'TRACTION';$('drive-state').classList.toggle('warning',!!me.braking||me.gripUsage>1.1);$('nitro-fill').style.width=`${me.nitro}%`;$('nitro-label').textContent=me.drifting&&race.rules==='arcade'?`漂移蓄能 ${Math.round(me.driftCharge/1.8*100)}%`:me.boosting&&me.boost>0?`加速 ${me.boost.toFixed(1)} 秒`:me.drifting?'轮胎滑移 / DRIFT':`NITRO ${Math.round(me.nitro)}%`;
-  $('item-icon').textContent=me.item?ITEMS[me.item].icon:'◇';$('item-name').textContent=me.item?ITEMS[me.item].name:'等待道具';document.querySelector('[data-control="item"]').classList.toggle('available',!!me.item);
-  $('speed-lines').style.opacity=me.boosting?1:0;$('hit-flash').style.opacity=me.hit;
+  $('speed').textContent=Math.round(me.v*3.6);$('gear').textContent=me.reversing?'R':me.v<.8?'N':me.engine==='electric'?'D':String(me.gear||1);$('rpm-fill').style.width=`${clamp((me.rpm||900)/7800*100,0,100)}%`;$('rpm-fill').classList.toggle('redline',(me.rpm||0)>6200);$('rpm-label').textContent=`${Math.round((me.rpm||900)/100)*100} RPM`;$('drive-state').textContent=me.reversing?'倒车':me.offRoad?'路肩失速':me.braking?'制动':me.frozen>0?'冰冻减速':me.overdrive>0?'火箭冲刺':me.drifting?'漂移':me.gripUsage>1.1?'推头 · 减速':me.drafting?'尾流加速':me.driftBoost>0?'出弯加速':me.boosting?'加速':'手动驾驶';$('drive-state').classList.toggle('warning',!!me.braking||me.gripUsage>1.1);$('nitro-fill').style.width=`${me.nitro}%`;$('nitro-label').textContent=me.overdrive>0?`ROCKET ${me.overdrive.toFixed(1)} 秒`:me.frozen>0?`冰冻 ${me.frozen.toFixed(1)} 秒`:me.boosting&&me.boost>0?`加速 ${me.boost.toFixed(1)} 秒`:`NITRO ${Math.round(me.nitro)}%`;
+  const drift=driftFeedback(me,race.rules);$('drift-display').hidden=!drift.visible;$('drift-display').dataset.tier=String(drift.tier);$('drift-display').classList.toggle('releasing',me.driftBoost>0);$('drift-display').style.setProperty('--drift-color',drift.color);$('drift-title').textContent=drift.name;$('drift-hint').textContent=drift.hint;$('drift-fill').style.width=`${drift.progress*100}%`;$('drift-gauge').setAttribute('aria-valuenow',String(Math.round(drift.progress*100)));$('drift-gauge').setAttribute('aria-valuetext',`${drift.name}，蓄能 ${Math.round(drift.progress*100)}%`);
+  const preview=itemPreview(race,me,getTrack(race.trackId)),itemButton=document.querySelector('[data-control="item"]');
+  $('item-icon').textContent=me.item?ITEMS[me.item].icon:'◇';$('item-name').textContent=me.item?ITEMS[me.item].shortName||ITEMS[me.item].name:'等待道具';itemButton.classList.toggle('available',!!me.item);itemButton.classList.toggle('target-ready',['pulse','frost'].includes(me.item)&&preview.targetCount>0);itemButton.setAttribute('aria-label',me.item?`使用${ITEMS[me.item].name}，快捷键 E`:'等待拾取道具');
+  $('item-readout').hidden=race.rules!=='arcade';$('item-readout').dataset.kind=me.item||'empty';$('item-title').textContent=preview.name||'寻找道具箱';$('item-hint').textContent=preview.hint||preview.description||'穿过彩色箱体，获取攻防道具。';$('item-status').textContent=me.shield>0?`护盾保护 ${me.shield.toFixed(1)} 秒`:me.frozen>0?`冰冻减速 ${me.frozen.toFixed(1)} 秒`:me.overdrive>0?`火箭冲刺 ${me.overdrive.toFixed(1)} 秒`:me.slow>0?`减速剩余 ${me.slow.toFixed(1)} 秒`:me.item?'按 E / 点击使用':'保持走线，等待补给';
+  $('speed-lines').style.opacity=me.boosting&&!matchMedia('(prefers-reduced-motion: reduce)').matches?.65:0;$('hit-flash').style.opacity=me.hit;
   const count=race.time<0?String(Math.ceil(-race.time)):race.time<.8?'GO!':'';$('countdown').textContent=count;if(count&&count!==lastCount)audio.effect('count');lastCount=count;
   $('spectating').hidden=me.finishTime===null||race.status==='finished';
-  for(const e of race.events){if(e.id>lastEvent&&e.racer===playerId){$('race-message').textContent=e.text;audio.effect(e.type==='hit'?'crash':e.type);if(e.type==='hit'&&!matchMedia('(prefers-reduced-motion: reduce)').matches)navigator.vibrate?.(35);}lastEvent=Math.max(lastEvent,e.id);}
+  for(const e of race.events){if(e.id>lastEvent&&e.racer===playerId){$('race-message').textContent=e.text;if(e.type!=='boost')audio.effect(e.type==='hit'?'crash':e.type==='drift-ready'?'pickup':e.type);if(e.type==='hit'&&!matchMedia('(prefers-reduced-motion: reduce)').matches)navigator.vibrate?.(35);}lastEvent=Math.max(lastEvent,e.id);}
   if(me.boosting&&!lastBoosting)audio.effect('boost');
   lastBoosting=!!me.boosting;
   const recent=race.events.filter(e=>e.racer===playerId&&race.time-e.time<1.7);if(!recent.length)$('race-message').textContent='';
   const signature=race.racers.map(r=>`${r.id}:${r.rank}:${r.name}:${r.bot}:${r.finishTime}`).join('|');if(signature!==leaderboardSignature){leaderboardSignature=signature;$('leaderboard').replaceChildren();for(const r of [...race.racers].sort((a,b)=>a.rank-b.rank).slice(0,6)){const row=document.createElement('div');row.className=`rank-row ${r.id===playerId?'me':''}`;const num=document.createElement('b');num.textContent=r.rank;const name=document.createElement('span');name.textContent=r.id===playerId?'你':r.name;const tag=document.createElement('span');tag.textContent=r.finishTime!==null?'FIN':r.bot?'AI':r.id===playerId?'YOU':'P2';row.append(num,name,tag);$('leaderboard').append(row);}}
-  drawMap();if(race.status==='finished'&&!resultShown)showResult();
+  const course=getTrack(race.trackId);raceHud.sync(race,me,course,cornerAdvice(course,me.s,me));
+  updateHudGhost();drawMap();if(race.status==='finished'&&!resultShown)showResult();
+}
+function updateHudGhost(){
+  const me=race?.racers.find(r=>r.id===playerId);if(!me)return;
+  raceHud.syncGhost({bestTime:ghost.time,delta:ghost.progressDelta(me.s,race.time),enabled:ghostEnabled});
 }
 function showResult(){
+  ghost.finish(race,race.racers.find(r=>r.id===playerId));graphics?.setGhost(null);
   resultShown=true;controls.enabled=false;controls.reset();$('pause-dialog').close();$('result-list').replaceChildren();const me=race.racers.find(r=>r.id===playerId);
   $('result-title').textContent=me.rank===1&&me.finishTime!==null?'P1 · 本场冠军':me.finishTime!==null?'比赛成绩已记录':'本场未完赛';
   $('result-subtitle').textContent=`${getTrack(race.trackId).name} · ${race.laps} 圈${me.finishTime!==null?` · 用时 ${formatTime(me.finishTime)}`:' · 本次未完赛'}`;
   for(const r of [...race.racers].sort((a,b)=>a.rank-b.rank)){const row=document.createElement('div');row.className=`result-row ${r.id===playerId?'me':''}`;const rank=document.createElement('b');rank.textContent=r.rank;const name=document.createElement('span');name.textContent=`${r.name}${r.id===playerId?'（你）':''}`;const time=document.createElement('span');time.textContent=r.finishTime===null?'DNF':formatTime(r.finishTime);row.append(rank,name,time);$('result-list').append(row);}
-  $('again').hidden=mode==='lan'&&lobby?.host!==playerId;$('again').textContent=mode==='lan'?'回房间再战':'再跑一场 ↗';$('result-dialog').showModal();audio.effect('finish');
+  $('again').hidden=mode==='lan'&&lobby?.host!==playerId;$('again').textContent=mode==='lan'?'回房间再战':'再跑一场 ↗';raceHud.results(race,me);$('result-dialog').showModal();audio.effect('finish');
 }
 $('result-dialog').addEventListener('cancel',e=>e.preventDefault());
 // Old phones' browsers treat an edge drag as back/forward navigation, which
@@ -158,20 +175,108 @@ document.addEventListener('touchmove',e=>{if(!gameActive)return;const t=e.touche
 function armBackGuard(){history.pushState({screen:'race'},'');}
 window.addEventListener('popstate',()=>{if(gameActive){backToGarage();toast('已返回车库');}});
 
-let prev=performance.now(),accumulator=0,hudAccum=0,inputAccum=0,lastBoosting=false;
+let prev=performance.now(),accumulator=0,hudAccum=0,inputAccum=0,lastBoosting=false,screenshotFrozen=false;
 function frame(now){const dt=Math.min(.1,(now-prev)/1000);prev=now;
   if(race&&gameActive){
     const input=controls.read();
-    if(mode==='solo'&&!paused){race.racers.find(r=>r.id===playerId).input=input;accumulator+=dt;while(accumulator>=1/60){stepRace(race,1/60);accumulator-=1/60;}}
+    if(mode==='solo'&&!paused&&!screenshotFrozen){race.racers.find(r=>r.id===playerId).input=input;accumulator+=dt;while(accumulator>=1/60){stepRace(race,1/60);ghost.sample(race,race.racers.find(r=>r.id===playerId));accumulator-=1/60;}}
     if(mode==='lan'&&joined){inputAccum+=dt;if(inputAccum>1/30){send({type:'input',input});inputAccum=0;}if(now-lastStateAt>6000&&!$('pause-dialog').open){showPause();$('pause-title').textContent='网络暂时没有响应';$('pause-description').textContent='请检查 Wi-Fi，恢复后点击继续比赛。';}}
     // Render interpolation only; race rules are evaluated by the server in LAN mode.
     let display=race;
-    if(mode==='lan'&&race.status==='racing'){const ahead=Math.min(.1,(now-lastStateAt)/1000);display={...race,racers:race.racers.map(r=>({...r,s:r.s+(r.finishTime===null?r.v*Math.max(0,Math.cos(r.headingError||0))*ahead:0)}))};}
-    if(!paused)graphics?.render(display,playerId,dt,now/1000);
-    hudAccum+=dt;if(hudAccum>.08){updateHUD();hudAccum=0;}audio.update(race.racers.find(r=>r.id===playerId),!paused&&race.status==='racing');
+    if(mode==='lan'&&race.status==='racing'){const ahead=Math.min(.1,(now-lastStateAt)/1000);display={...race,racers:race.racers.map(r=>({...r,s:r.s+(r.finishTime===null?(r.forwardSpeed??r.v)*Math.cos(r.headingError||0)*ahead:0),worldX:r.worldX+(r.finishTime===null?(r.worldVelocityX||0)*ahead:0),worldZ:r.worldZ+(r.finishTime===null?(r.worldVelocityZ||0)*ahead:0)}))};}
+    if(!paused){graphics?.setGhost(ghostEnabled&&race.rules==='timeattack'&&race.status==='racing'&&!resultShown?ghost.playback(race.time):null,race.racers.find(r=>r.id===playerId).car);graphics?.render(display,playerId,dt,now/1000);}
+    hudAccum+=dt;if(hudAccum>.08){updateHUD();hudAccum=0;}const audible=race.racers.find(r=>r.id===playerId);audio.update(audible,!paused&&controls.enabled&&race.status==='racing'&&audible.finishTime===null,{throttle:input.throttle,camera:graphics?.cameraMode,race});
   }else {graphics?.render(null,null,dt,now/1000);audio.update(null,false);}
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 // Read-only diagnostics for smoke tests and FPS / multiplayer checks.
-Object.defineProperty(window,'__racerDebug',{get:()=>({mode,active:gameActive,paused,playerId,room:lobby?.room,track:race?.trackId,time:race?.time,status:race?.status,racers:race?.racers.map(r=>({id:r.id,s:r.s,x:r.x,v:r.v,rank:r.rank,bot:r.bot,car:r.car,headingError:r.headingError,vx:r.vx,gear:r.gear,rpm:r.rpm,boost:r.boost,boosting:r.boosting,boostContacts:Object.keys(r.boostContacts||{}).filter(id=>r.boostContacts[id]),braking:r.braking,gripUsage:r.gripUsage,finishTime:r.finishTime})),input:controls.read(),rules:race?.rules,render:graphics?.diagnostics||null})});
+
+// Evidence-only hooks. The canvas inspector freezes simulation while rendering
+// continues so screenshots show a live frame instead of a stale buffer. They are
+// installed only for ?evidence=1 runs and never affect normal play or tests.
+if(new URLSearchParams(location.search).has('evidence')){
+  const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+  const frames=count=>new Promise(resolve=>{let left=count;const tick=()=>{if(--left<=0)resolve();else requestAnimationFrame(tick);};requestAnimationFrame(tick);});
+  const states={
+    'garage':{garage:true},
+    'race-coast':{track:'coast',rules:'circuit'},
+    'race-canyon':{track:'canyon',rules:'circuit'},
+    'race-neon':{track:'neon',rules:'circuit'},
+    'race-arcade':{track:'arcade',rules:'arcade'},
+    'race-coast-boost':{track:'coast',rules:'circuit',vfx:'boost'},
+    'race-canyon-drift':{track:'canyon',rules:'circuit',vfx:'drift'},
+  };
+  // Deterministic framing on top of a live race: the countdown is skipped, the
+  // pack is placed on the racing line at speed, then the simulation keeps running.
+  // This is a screenshot fixture only; gameplay verification uses real-input suites.
+  const framePack=async config=>{
+    const {syncVehiclePose}=await import('./driving.js'),{getTrack}=await import('./tracks.js');
+    const track=getTrack(config.track),me=race.racers.find(r=>r.id===playerId);
+    const straight=track.boostStraight;
+    // Pick a clean stretch of the 320 m straight: far enough from checkpoint
+    // gates, pickups and the start gantry that the framing stays uncluttered.
+    const avoid=[0,...race.checkpoints.map(c=>c.s),...track.objects.map(o=>o.s)];
+    let spot=Math.min(track.length-140,straight.s+150),bestScore=-1;
+    for(let candidate=straight.s+90;candidate<=Math.min(track.length-60,straight.s+straight.length-40);candidate+=10){
+      const score=Math.min(...avoid.map(a=>Math.abs(((candidate-a+track.length/2)%track.length)-track.length/2)));
+      if(score>bestScore){bestScore=score;spot=candidate;}
+    }
+    // Freeze the simulation while framing so bots cannot reset back to the grid,
+    // but keep rendering so the chase camera and HUD settle on the new state.
+    screenshotFrozen=true;
+    race.time=1.2;race.status='racing';race.events.length=0;
+    const offsets=[[0,0],[13,1.2],[26,-1.4],[-11,.8],[-23,-.9],[7,2.4]];
+    for(const [index,racer] of race.racers.entries()){
+      const [ahead,lateral]=offsets[index%offsets.length],s=spot+ahead;
+      Object.assign(racer,{s,x:lateral,v:38+(index%3)*4,forwardSpeed:38+(index%3)*4,rpm:5600,gear:4,heading:track.sample(s,lateral).yaw,validLap:true,cleanSectors:1,checkpointsPassed:2,nextCheckpoint:2,drifting:false});
+      syncVehiclePose(racer,track);
+    }
+    const order=[...race.racers].sort((a,b)=>b.s-a.s);
+    order.forEach((racer,index)=>racer.rank=index+1);
+    Object.assign(me,{v:41,forwardSpeed:41});
+    if(config.vfx==='boost'){
+      Object.assign(me,{boosting:true,boost:2.4,overdrive:1.8,nitro:82,drifting:false});
+      race.events.push({id:++race.eventSeq,racer:playerId,type:'item',item:'rocket',source:'rocket',used:true,time:race.time});
+    }else if(config.vfx==='drift'){
+      Object.assign(me,{drifting:true,driftTier:2,driftCharge:1.72,driftBoost:1.1,slipAngle:-.26,steerAngle:.42,boosting:false});
+      race.events.push({id:++race.eventSeq,racer:playerId,type:'drift',tier:2,source:'drift',time:race.time});
+      race.events.push({id:++race.eventSeq,racer:playerId,type:'drift',tier:2,source:'drift',time:race.time});
+    }
+    lastEvent=race.eventSeq;
+    graphics.cameraReady=false;
+    await frames(6);
+    $('countdown').textContent='';
+  };
+  const setState=async name=>{
+    const config=states[name];if(!config)throw new Error(`Unknown test state: ${name}`);
+    screenshotFrozen=false;document.querySelectorAll('dialog[open]').forEach(dialog=>dialog.close());
+    if(config.garage){
+      if(gameActive||race)backToGarage();
+      else{$('garage').hidden=false;$('race-screen').hidden=true;graphics.mode='garage';graphics.setContainer($('garage-view'));}
+      await frames(6);return {state:name};
+    }
+    if(gameActive)backToGarage();
+    choice.track=config.track;choice.rules=config.rules;choice.laps=2;choice.car='comet';choice.engine='balanced';choice.difficulty='normal';
+    startSolo();
+    await frames(2);
+    await framePack(config);
+    const coach=$('dismiss-driving-coach');if(coach&&!coach.hidden&&coach.offsetParent!==null)coach.click();
+    const toastElement=$('toast');if(toastElement)toastElement.hidden=true;
+    const me=race.racers.find(r=>r.id===playerId);
+    return {state:name,track:race.trackId,time:race.time,speed:me.v};
+  };
+  // Read-only diagnostics consumed by the project-local canvas inspector so its
+  // reports include measured renderer counts and budget rows.
+  Object.defineProperty(window,'__THREE_GAME_DIAGNOSTICS__',{get:()=>{
+    const d=window.__racerDebug?.render||{};
+    return {renderer:{calls:d.calls,triangles:d.triangles,geometries:d.geometries,textures:d.textures},quality:d.quality,level:d.level,pixelRatio:d.pixelRatio,post:d.post||null,sky:d.sky||null,scenery:d.scenery||null,materials:d.materials,shadowMapSize:d.shadowMapSize,fps:d.fps,frameMs:d.frameMs};
+  }});
+  window.__THREE_GAME_TEST_HOOKS__={
+    setState,
+    setPausedForScreenshot(value){screenshotFrozen=!!value;},
+    setReducedMotion(){return true;},
+    hideDebugUi(){const toastElement=$('toast');if(toastElement)toastElement.hidden=true;return true;},
+  };
+}
+Object.defineProperty(window,'__racerDebug',{get:()=>({version:'3.1',driving:'manual',mode,active:gameActive,paused,playerId,room:lobby?.room,track:race?.trackId,time:race?.time,status:race?.status,racers:race?.racers.map(r=>({id:r.id,s:r.s,x:r.x,v:r.v,rank:r.rank,bot:r.bot,car:r.car,engine:r.engine,worldX:r.worldX,worldZ:r.worldZ,heading:r.heading,forwardSpeed:r.forwardSpeed,sideSpeed:r.sideSpeed,steerAngle:r.steerAngle,drifting:r.drifting,slipAngle:r.slipAngle,yawRate:r.yawRate,driftCharge:r.driftCharge,driftTier:r.driftTier,driftDirection:r.driftDirection,driftBoost:r.driftBoost,item:r.item,shield:r.shield,slow:r.slow,frozen:r.frozen,overdrive:r.overdrive,nitro:r.nitro,reversing:r.reversing,offRoad:r.offRoad,nextCheckpoint:r.nextCheckpoint,checkpointsPassed:r.checkpointsPassed,completedLaps:r.completedLaps,cleanLaps:r.cleanLaps,validLap:r.validLap,penaltyTime:r.penaltyTime,resultTime:r.resultTime,medal:r.medal,resetCount:r.resetCount,headingError:r.headingError,vx:r.vx,gear:r.gear,rpm:r.rpm,boost:r.boost,boosting:r.boosting,boostContacts:Object.keys(r.boostContacts||{}).filter(id=>r.boostContacts[id]),braking:r.braking,gripUsage:r.gripUsage,finishTime:r.finishTime})),input:controls.read(),rules:race?.rules,laps:race?.laps,checkpoints:race?.checkpoints?.map(c=>({...c})),targetTimes:race?.targetTimes?{...race.targetTimes}:null,timeLimit:race?.timeLimit,events:race?.events?.slice(-12).map(e=>({...e})),ghost:{...ghost.diagnostics,enabled:ghostEnabled,bestTime:ghost.time,delta:race?ghost.progressDelta(race.racers.find(r=>r.id===playerId)?.s,race.time):null},audio:audio.diagnostics,render:graphics?.diagnostics||null})});

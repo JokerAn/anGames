@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "runId": "premium-pass-2",
+  "captures": [
+    {
+      "mode": "desktop",
+      "state": "garage",
+      "report": "test/artifacts/premium/desktop-garage.json"
+    },
+    {
+      "mode": "desktop",
+      "state": "race-coast",
+      "report": "test/artifacts/premium/desktop-race-coast.json"
+    },
+    {
+      "mode": "desktop",
+      "state": "race-canyon",
+      "report": "test/artifacts/premium/desktop-race-canyon.json"
+    },
+    {
+      "mode": "desktop",
+      "state": "race-neon",
+      "report": "test/artifacts/premium/desktop-race-neon.json"
+    },
+    {
+      "mode": "desktop",
+      "state": "race-arcade",
+      "report": "test/artifacts/premium/desktop-race-arcade.json"
+    },
+    {
+      "mode": "mobile",
+      "state": "race-arcade",
+      "report": "test/artifacts/premium/mobile-race-arcade.json"
+    },
+    {
+      "mode": "mobile",
+      "state": "garage",
+      "report": "test/artifacts/premium/mobile-garage.json"
+    },
+    {
+      "mode": "desktop",
+      "state": "race-coast-boost",
+      "report": "test/artifacts/premium/desktop-race-coast-boost.json"
+    },
+    {
+      "mode": "desktop",
+      "state": "race-canyon-drift",
+      "report": "test/artifacts/premium/desktop-race-canyon-drift.json"
+    }
+  ],
+  "artifacts": [
+    "test/artifacts/premium/motion-neon-chase.webm",
+    "test/artifacts/premium/mobile-landscape-arcade.png",
+    "test/artifacts/premium/mobile-landscape-coast.png",
+    "test/artifacts/premium/after-1600-coast-desktop.png",
+    "test/artifacts/premium/after-1600-arcade-desktop.png",
+    "test/artifacts/premium/after-1600-arcade-mobile.png",
+    "test/artifacts/premium/baseline-coast-desktop.png",
+    "test/artifacts/premium/baseline-arcade-desktop.png",
+    "test/artifacts/premium/after-1600-arcade-landscape.png"
+  ]
+}

@@ -1,6 +1,27 @@
 {
-  "name": "junior-racers", "version": "1.0.0", "private": true, "type": "module",
+  "name": "junior-racers",
+  "version": "3.1.0",
+  "private": true,
+  "type": "module",
   "description": "少年赛车 · 手机优先 3D 赛道竞速与自动画质",
-  "scripts": {"start": "node server.js", "dev": "node --watch server.js", "test": "node --test test/*.test.js", "check": "node --check server.js && node --check src/game.js && node --check src/renderer.js && node --check src/simulation.js && node --check src/tracks.js && node --check src/audio.js && node --check src/controls.js && node --check src/quality.js"},
-  "engines": {"node": ">=20"}, "dependencies": {"three": "0.186.1", "ws": "8.18.3"}
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test test/*.test.js",
+    "test:ghost": "node --test test/ghost.test.js test/braking-advice.test.js && node test/ghost-render-browser.cjs",
+    "test:race": "node --test test/driver-physics.test.js test/driver-controls.test.js test/race-rules.test.js test/race-hud.test.js test/v3-integration.test.js && node test/racing-v3-browser.cjs",
+    "test:feel": "node --test test/presentation.test.js && node test/audio-browser.cjs && node test/presentation-browser.cjs && node test/driving-feel-browser.cjs",
+    "check": "node --check server.js && node --check src/game.js && node --check src/renderer.js && node --check src/simulation.js && node --check src/tracks.js && node --check src/audio.js && node --check src/controls.js && node --check src/quality.js && node --check src/presentation.js && node --check src/effects.js && node --check src/driving.js && node --check src/race-rules.js && node --check src/race-hud.js && node --check src/course-guidance.js && node --check src/ghost.js && node --check src/drift.js && node --check src/items.js && node --check src/light-show.js && node --check src/postfx.js && node --check src/sky-environment.js && node --check src/surface-textures.js && node --check src/track-scenery.js && node --check test/tools/inspect-canvas.cjs && node --check test/premium-runtime-audit.cjs && node --check test/premium-capture.cjs && node --check test/premium-motion.cjs",
+    "test:handling": "node --test test/drift-system.test.js test/items.test.js test/items-integration.test.js test/camera-feel.test.js && node test/handling-browser.cjs && node test/arcade-render-browser.cjs",
+    "test:neon": "node --test test/arcade-steering.test.js test/arcade-race.test.js test/arcade-items.test.js test/light-show.test.js test/neon-network.test.js && node test/neon-arcade-browser.cjs",
+    "test:premium": "node --test test/quality.test.js && node test/postfx-browser.cjs && node test/scenery-browser.cjs && node test/premium-runtime-audit.cjs",
+    "inspect:canvas": "node test/tools/inspect-canvas.cjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "three": "0.186.1",
+    "ws": "8.18.3"
+  }
 }

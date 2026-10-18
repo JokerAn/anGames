@@ -1,10 +1,13 @@
 // Hardware hints select the first frame; sustained render timing makes the decision.
 // Missing Safari memory/core hints deliberately do not imply a low-end phone.
+// `post` is the finishing-pipeline budget: 0 = direct render, 1 = graded HDR
+// composite, 2 = graded composite plus bloom. Bloom cost scales with mips and
+// MSAA samples, so low tiers keep the direct path.
 export const QUALITY_LEVELS = [
-  {name:'流畅',pixelRatio:.72,maxPixels:650000,shadows:false,shadowSize:512,particles:18,detail:false,fps:30},
-  {name:'均衡',pixelRatio:1,maxPixels:1250000,shadows:false,shadowSize:512,particles:36,detail:false,fps:60},
-  {name:'高清',pixelRatio:1.5,maxPixels:2400000,shadows:true,shadowSize:1024,particles:64,detail:true,fps:60},
-  {name:'精细',pixelRatio:2,maxPixels:3600000,shadows:true,shadowSize:2048,particles:96,detail:true,fps:60},
+  {name:'流畅',pixelRatio:.72,maxPixels:650000,shadows:false,shadowSize:512,particles:18,detail:false,fps:30,post:0,postSamples:0,bloomMips:0,bloomStrength:0},
+  {name:'均衡',pixelRatio:1,maxPixels:1250000,shadows:false,shadowSize:512,particles:36,detail:false,fps:60,post:1,postSamples:0,bloomMips:0,bloomStrength:0},
+  {name:'高清',pixelRatio:1.5,maxPixels:2400000,shadows:true,shadowSize:1024,particles:64,detail:true,fps:60,post:2,postSamples:2,bloomMips:4,bloomStrength:.62},
+  {name:'精细',pixelRatio:2,maxPixels:3600000,shadows:true,shadowSize:2048,particles:96,detail:true,fps:60,post:2,postSamples:4,bloomMips:5,bloomStrength:.74},
 ];
 export function deviceBudget(nav={}) {
   const cores=Number(nav.hardwareConcurrency)||0,memory=Number(nav.deviceMemory)||0;

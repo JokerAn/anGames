@@ -1,69 +1,122 @@
+import {soundFrame,createRandom} from './presentation.js';
+import {clamp,getTrack,shortDistance} from './tracks.js';
+
 export class AudioEngine {
-  constructor(){this.enabled=false;this.ctx=null;this.lastHit=0;this.lastBoost=false;}
-  async unlock(){try{if(!this.ctx){const AudioContext=window.AudioContext||window.webkitAudioContext;if(!AudioContext)return;this.ctx=new AudioContext();this.master=this.ctx.createGain();
-    this.master.gain.value=this.enabled?.3:0;this.master.connect(this.ctx.destination);
-    // RPM harmonics plus a quiet wind/tyre layer. No recordings or network assets.
-    this.motor=this.ctx.createOscillator();this.motor.type='sawtooth';
-    this.motorSub=this.ctx.createOscillator();this.motorSub.type='square';
-    this.motorSubGain=this.ctx.createGain();this.motorSubGain.gain.value=.2;
-    this.filter=this.ctx.createBiquadFilter();this.filter.type='lowpass';this.filter.frequency.value=300;this.filter.Q.value=.8;
-    this.motorGain=this.ctx.createGain();this.motorGain.gain.value=0;
-    this.motor.connect(this.filter);this.motorSub.connect(this.motorSubGain);this.motorSubGain.connect(this.filter);this.filter.connect(this.motorGain);this.motorGain.connect(this.master);
-    this.motor.start();this.motorSub.start();
-    const buffer=this.ctx.createBuffer(1,this.ctx.sampleRate*2,this.ctx.sampleRate),data=buffer.getChannelData(0);for(let i=0;i<data.length;i++)data[i]=Math.random()*2-1;
-    this.air=this.ctx.createBufferSource();this.air.buffer=buffer;this.air.loop=true;
-    this.airFilter=this.ctx.createBiquadFilter();this.airFilter.type='lowpass';this.airFilter.frequency.value=500;
-    this.airGain=this.ctx.createGain();this.airGain.gain.value=0;this.air.connect(this.airFilter);this.airFilter.connect(this.airGain);this.airGain.connect(this.master);this.air.start();
-    this.tyres=this.ctx.createBufferSource();this.tyres.buffer=buffer;this.tyres.loop=true;
-    this.tyreFilter=this.ctx.createBiquadFilter();this.tyreFilter.type='bandpass';this.tyreFilter.frequency.value=1400;this.tyreFilter.Q.value=.8;
-    this.tyreGain=this.ctx.createGain();this.tyreGain.gain.value=0;this.tyres.connect(this.tyreFilter);this.tyreFilter.connect(this.tyreGain);this.tyreGain.connect(this.master);this.tyres.start();}if(this.ctx.state==='suspended')await this.ctx.resume();}catch{}}
-  async toggle(){await this.unlock();this.enabled=!this.enabled;if(this.master)this.master.gain.setTargetAtTime(this.enabled?.3:0,this.ctx.currentTime,.05);if(this.ctx&&!this.enabled)await this.ctx.suspend();return this.enabled;}
-  update(racer,active){
-    if(!this.ctx)return;
-    const v=racer?.v||0,t=this.ctx.currentTime,rpm=racer?.rpm||900,electric=racer?.engine==='electric';
-    this.motor.type=electric?'sine':'sawtooth';this.motorSub.type=electric?'sine':'triangle';
-    const base=electric?90+v*8:rpm/60*(racer?.engine==='turbo'?4:3);
-    this.motor.frequency.setTargetAtTime(base,t,.055);this.motorSub.frequency.setTargetAtTime(base*.5,t,.06);
-    this.filter.frequency.setTargetAtTime(electric?2200:300+rpm*.16+(racer?.boosting?200:0),t,.08);
-    const load=racer?.braking?.055:.09;
-    this.motorGain.gain.setTargetAtTime(active?(electric?.09:load):0,t,.07);
-    this.airGain.gain.setTargetAtTime(active?Math.min(.09,v*v*.000018):0,t,.12);
-    this.airFilter.frequency.setTargetAtTime(300+v*12,t,.12);
-    this.tyreGain.gain.setTargetAtTime(active&&v>12?(racer?.drifting?.085:Math.max(0,(racer?.gripUsage||0)-.9)*.045):0,t,.07);
+  constructor(){this.enabled=false;this.ctx=null;this.previous=null;this.nodes=[];this.lastImpact=-10;this.random=createRandom(3107);}
+  createGraph(context){
+    this.ctx=context;this.nodes=[];
+    const own=node=>{this.nodes.push(node);return node;};
+    this.master=own(context.createGain());this.master.gain.value=this.enabled?.55:0;
+    const compressor=own(context.createDynamicsCompressor());compressor.threshold.value=-14;compressor.knee.value=12;compressor.ratio.value=4;compressor.attack.value=.005;compressor.release.value=.16;
+    this.mix=own(context.createGain());this.mix.connect(compressor);compressor.connect(this.master);this.master.connect(context.destination);
+    this.noiseBuffer=context.createBuffer(1,context.sampleRate*2,context.sampleRate);const samples=this.noiseBuffer.getChannelData(0),random=createRandom(9113);
+    for(let i=0;i<samples.length;i++)samples[i]=(random()*2-1)*.72;
+    // Combustion pulses: fundamental follows firing events per crank revolution.
+    this.waves={};
+    for(const engine of ['balanced','turbo']){
+      const real=new Float32Array(18),imag=new Float32Array(18);
+      for(let n=1;n<18;n++)imag[n]=(engine==='turbo'?(n%2?.9:.55):1)/Math.pow(n,1.35);
+      this.waves[engine]=context.createPeriodicWave(real,imag);
+    }
+    this.filter=own(context.createBiquadFilter());this.filter.type='lowpass';this.filter.Q.value=.65;
+    this.motorGain=own(context.createGain());this.motorGain.gain.value=0;
+    this.shiftGain=own(context.createGain());this.shiftGain.gain.value=1;
+    this.filter.connect(this.motorGain);this.motorGain.connect(this.shiftGain);this.shiftGain.connect(this.mix);
+    this.motor=own(context.createOscillator());this.motor.setPeriodicWave(this.waves.balanced);this.motor.connect(this.filter);this.motor.start();
+    this.motorSub=own(context.createOscillator());this.motorSub.type='triangle';const sub=own(context.createGain());sub.gain.value=.34;this.motorSub.connect(sub);sub.connect(this.filter);this.motorSub.start();
+    const oscillator=(type)=>{const source=own(context.createOscillator()),gain=own(context.createGain());source.type=type;gain.gain.value=0;source.connect(gain);gain.connect(this.mix);source.start();return {source,gain};};
+    this.electric=oscillator('sine');this.electricHarmonic=oscillator('sine');this.turbo=oscillator('sine');
+    const noise=(type,frequency,offset)=>{
+      const source=own(context.createBufferSource()),filter=own(context.createBiquadFilter()),gain=own(context.createGain());
+      source.buffer=this.noiseBuffer;source.loop=true;filter.type=type;filter.frequency.value=frequency;filter.Q.value=.65;gain.gain.value=0;
+      source.connect(filter);filter.connect(gain);gain.connect(this.mix);source.start(context.currentTime,offset);return {source,filter,gain};
+    };
+    this.air=noise('lowpass',700,.1);this.road=noise('bandpass',190,.4);this.intake=noise('bandpass',620,.8);
+    this.tyres=noise('bandpass',1200,1.2);this.curb=noise('lowpass',135,1.6);this.boost=noise('bandpass',1100,.6);
+    this.opponents=Array.from({length:2},()=>{
+      const source=own(context.createOscillator()),filter=own(context.createBiquadFilter()),gain=own(context.createGain()),pan=context.createStereoPanner?own(context.createStereoPanner()):null;
+      source.type='triangle';filter.type='lowpass';filter.frequency.value=750;gain.gain.value=0;source.connect(filter);filter.connect(gain);gain.connect(pan||this.mix);pan?.connect(this.mix);source.start();return {source,filter,gain,pan};
+    });
+    this.previous=null;this.lastImpact=-10;return this;
   }
-  tone(freq,duration,type,volume,delay=0,endFreq=freq){
-    if(!this.ctx||!this.enabled)return;
-    const now=this.ctx.currentTime+delay,osc=this.ctx.createOscillator(),gain=this.ctx.createGain();
-    osc.type=type;osc.frequency.setValueAtTime(freq,now);
-    if(endFreq!==freq)osc.frequency.exponentialRampToValueAtTime(Math.max(20,endFreq),now+duration);
-    gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(volume,now+.01);gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
-    osc.connect(gain);gain.connect(this.master);osc.start(now);osc.stop(now+duration+.02);
-    osc.onended=()=>{osc.disconnect();gain.disconnect();};
-  }
-  // Short noise burst, for crashes and tyre scuff.
-  noise(duration,volume,delay=0){
-    if(!this.ctx||!this.enabled)return;
-    const now=this.ctx.currentTime+delay,frames=Math.max(1,Math.floor(this.ctx.sampleRate*duration));
-    const buffer=this.ctx.createBuffer(1,frames,this.ctx.sampleRate),data=buffer.getChannelData(0);
-    for(let i=0;i<frames;i++)data[i]=(Math.random()*2-1)*(1-i/frames);
-    const src=this.ctx.createBufferSource();src.buffer=buffer;
-    const gain=this.ctx.createGain();gain.gain.value=volume;
-    const filter=this.ctx.createBiquadFilter();filter.type='lowpass';filter.frequency.value=1600;
-    src.connect(filter);filter.connect(gain);gain.connect(this.master);src.start(now);
-    src.onended=()=>{src.disconnect();filter.disconnect();gain.disconnect();};
-  }
-  effect(type){
-    if(!this.ctx||!this.enabled)return;
-    switch(type){
-      case 'hit': this.tone(140,.28,'square',.3,0,40);this.noise(.3,.32);break;
-      case 'crash': this.tone(90,.42,'sawtooth',.3,0,32);this.noise(.42,.42);break;
-      case 'boost': this.noise(.35,.055);break;
-      case 'drift': this.tone(420,.1,'sine',.09);break;
-      case 'pickup': this.tone(700,.11,'sine',.12);break;
-      case 'finish': [440,660].forEach((n,i)=>this.tone(n,.25,'sine',.12,i*.18));break;
-      case 'count': this.tone(780,.12,'sine',.16);break;
-      case 'wrong': this.tone(220,.3,'square',.16,0,120);break;
-      default: this.tone(880,.18,'square',.2,0,1320);
+  async unlock(){
+    try{
+      if(!this.ctx){const Context=window.AudioContext||window.webkitAudioContext;if(!Context)return;this.createGraph(new Context());}
+      if(this.ctx.state==='suspended')await this.ctx.resume();
+    }catch{
+      const context=this.ctx;for(const node of this.nodes){try{node.stop?.();node.disconnect();}catch{}}
+      this.nodes=[];this.ctx=null;this.master=null;try{void context?.close?.().catch(()=>{});}catch{}
     }
   }
+  async toggle(){
+    // User preference is immediate even when audio permission never resolves.
+    this.enabled=!this.enabled;
+    if(this.master)this.master.gain.setTargetAtTime(this.enabled?.55:0,this.ctx.currentTime,.035);
+    if(this.enabled)void this.unlock();return this.enabled;
+  }
+  update(racer,active,options={}){
+    if(!this.ctx||!this.master)return;
+    const t=options.at??this.ctx.currentTime,frame=soundFrame(racer,active,options),engine=racer?.engine||'balanced';
+    const target=(param,value,seconds=.055)=>param.setTargetAtTime(value,t,seconds);
+    if(this.engine!==engine){this.engine=engine;this.motor.setPeriodicWave(this.waves[engine==='turbo'?'turbo':'balanced']);}
+    target(this.motor.frequency,frame.frequency);target(this.motorSub.frequency,frame.frequency*.5,.075);
+    target(this.filter.frequency,frame.filterFrequency);target(this.motorGain.gain,frame.combustionGain);
+    target(this.electric.source.frequency,frame.frequency);target(this.electricHarmonic.source.frequency,frame.frequency*2.02);
+    target(this.electric.gain.gain,frame.electricGain);target(this.electricHarmonic.gain.gain,frame.electricGain*.18);
+    target(this.turbo.source.frequency,frame.turboFrequency,.13);target(this.turbo.gain.gain,frame.turboGain,active?.12:.025);
+    for(const [layer,key] of [[this.air,'windGain'],[this.road,'roadGain'],[this.intake,'intakeGain'],[this.tyres,'tyreGain'],[this.curb,'curbGain'],[this.boost,'boostGain']])target(layer.gain.gain,frame[key],active?.065:.035);
+    target(this.air.filter.frequency,450+(racer?.v||0)*15,.12);target(this.tyres.filter.frequency,frame.tyreFrequency);
+    const powered=racer?.boosting===true||(options.throttle??(racer?.acceleration||0)>1);
+    if(active&&this.previous?.id===racer?.id&&this.previous.engine===engine){
+      if(engine!=='electric'&&racer.gear>this.previous.gear&&(racer.v||0)>6){
+        this.shiftGain.gain.cancelScheduledValues(t);this.shiftGain.gain.setTargetAtTime(.32,t,.009);this.shiftGain.gain.setTargetAtTime(1,t+.065,.035);
+        this.noise(.055,.055,t,500);
+      }
+      if(engine==='turbo'&&this.previous.powered&&!powered&&(racer.rpm||0)>2800){this.noise(.18,.075,t,1900);this.tone(1450,.15,'sine',.025,0,470,t);}
+    }
+    this.previous=active&&racer?{id:racer.id,engine,gear:racer.gear,powered}:null;
+    const nearby=[];
+    if(active&&options.race&&racer){
+      const track=getTrack(options.race.trackId);
+      for(const other of options.race.racers){if(other.id===racer.id||other.finishTime!==null)continue;
+        const longitudinal=shortDistance(other.s,racer.s,track.length),distance=Math.hypot(longitudinal,other.x-racer.x);
+        if(distance<55)nearby.push({other,distance,pan:clamp(-(other.x-racer.x)/7,-.95,.95),relative:(other.v-racer.v)*Math.sign(longitudinal)});
+      }
+      nearby.sort((a,b)=>a.distance-b.distance);
+    }
+    this.opponents.forEach((voice,i)=>{
+      const entry=nearby[i];target(voice.gain.gain,entry?.other.v>1?.048/Math.pow(1+entry.distance/9,1.5):0,.12);
+      if(entry){const other=soundFrame(entry.other,true);target(voice.source.frequency,other.frequency*clamp(1-entry.relative/343,.85,1.15),.09);if(voice.pan)target(voice.pan.pan,entry.pan,.1);}
+    });
+    this.frame=frame;
+  }
+  tone(freq,duration,type,volume,delay=0,endFreq=freq,at=this.ctx?.currentTime){
+    if(!this.ctx||!this.enabled)return;
+    const now=at+delay,osc=this.ctx.createOscillator(),gain=this.ctx.createGain();osc.type=type;osc.frequency.setValueAtTime(freq,now);
+    if(endFreq!==freq)osc.frequency.exponentialRampToValueAtTime(Math.max(20,endFreq),now+duration);
+    gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(volume,now+.006);gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
+    osc.connect(gain);gain.connect(this.mix);osc.start(now);osc.stop(now+duration+.02);osc.onended=()=>{osc.disconnect();gain.disconnect();};
+  }
+  noise(duration,volume,at=this.ctx?.currentTime,frequency=1200){
+    if(!this.ctx||!this.enabled)return;
+    const source=this.ctx.createBufferSource(),filter=this.ctx.createBiquadFilter(),gain=this.ctx.createGain();source.buffer=this.noiseBuffer;
+    filter.type='bandpass';filter.frequency.value=frequency;filter.Q.value=.6;gain.gain.setValueAtTime(volume,at);gain.gain.exponentialRampToValueAtTime(.0001,at+duration);
+    source.connect(filter);filter.connect(gain);gain.connect(this.mix);source.start(at,this.random()*.9);source.stop(at+duration);source.onended=()=>{source.disconnect();filter.disconnect();gain.disconnect();};
+  }
+  effect(type){
+    if(!this.ctx||!this.enabled||this.ctx.state!=='running')return;
+    switch(type){
+      case 'hit':case 'crash':
+        if(this.ctx.currentTime-this.lastImpact<.18)return;this.lastImpact=this.ctx.currentTime;
+        this.tone(95,.22,'triangle',.22,0,32);this.noise(.17,.23,undefined,650);this.noise(.08,.09,undefined,2600);break;
+      case 'boost':this.noise(.3,.08,undefined,950);break;
+      case 'drift':break; // Continuous slip already describes tyre traction.
+      case 'pickup':this.tone(740,.12,'sine',.11,0,1020);break;
+      case 'finish':[440,660].forEach((n,i)=>this.tone(n,.25,'sine',.12,i*.18));break;
+      case 'count':this.tone(780,.12,'sine',.13);break;
+      case 'wrong':this.tone(220,.3,'triangle',.13,0,120);break;
+      default:this.tone(880,.14,'sine',.09,0,1120);
+    }
+  }
+  get diagnostics(){return {enabled:this.enabled,state:this.ctx?.state||'unavailable',engine:this.engine||'balanced',...this.frame};}
 }

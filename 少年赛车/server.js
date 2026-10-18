@@ -14,7 +14,7 @@ export function createGameServer() {
   const server = http.createServer(async (req,res) => {
     try {
       const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
-      if (pathname === '/api/info') {res.writeHead(200, {'Content-Type': MIME['.json']}); res.end(JSON.stringify({addresses: Object.values(os.networkInterfaces()).flat().filter(a=>a.family==='IPv4'&&!a.internal).map(a=>a.address)})); return;}
+      if (pathname === '/api/info') {res.writeHead(200, {'Content-Type': MIME['.json']}); res.end(JSON.stringify({version:'3.1',driving:'manual',addresses: Object.values(os.networkInterfaces()).flat().filter(a=>a.family==='IPv4'&&!a.internal).map(a=>a.address)})); return;}
       const requested = pathname === '/' ? 'index.html' : pathname.slice(1);
       const allow = requested === 'index.html' || requested === 'style.css' || requested === 'icon.svg' || /^src\/[a-z-]+\.js$/.test(requested) || /^vendor\/three\.(module|core)\.js$/.test(requested);
       if (!allow) {res.writeHead(404); res.end('Not found'); return;}
@@ -52,7 +52,7 @@ export function createGameServer() {
           if(room?.players.length>=2) return send(ws,{type:'error',message:'房间已满（最多两名玩家）。'});
           if(!room&&rooms.size>=100) return send(ws,{type:'error',message:'房间数量已满，请稍后再试。'});
           leave(client);
-          if(!room) {room={code,host:client.id,track:TRACKS.some(t=>t.id===data.track)?data.track:'coast',laps:data.laps===2?2:3,difficulty:data.difficulty==='easy'?'easy':'normal',rules:data.rules==='arcade'?'arcade':'circuit',players:[],race:null};rooms.set(code,room);}
+          if(!room) {room={code,host:client.id,track:TRACKS.some(t=>t.id===data.track)?data.track:'coast',laps:data.laps===3?3:2,difficulty:data.difficulty==='easy'?'easy':'normal',rules:['arcade','timeattack'].includes(data.rules)?data.rules:'circuit',players:[],race:null};rooms.set(code,room);}
           room.players.push({id:client.id,...cleanChoice(data),ready:false,ws}); client.room=code; lobby(room); return;
         }
         const room=rooms.get(client.room); if(!room) return;
@@ -76,7 +76,7 @@ export function createGameServer() {
     const now=performance.now();accumulator+=Math.min(.2,(now-previous)/1000);previous=now;
     while(accumulator>=1/60) {
       for(const room of rooms.values()) if(room.race) {
-        for(const p of room.players) {const c=clients.get(p.ws); if(c&&Date.now()-c.lastInput>900) {const r=room.race.racers.find(r=>r.id===p.id);if(r) r.input={throttle:false,brake:true};}}
+        for(const p of room.players) {const c=clients.get(p.ws); if(c&&Date.now()-c.lastInput>900) {const r=room.race.racers.find(r=>r.id===p.id);if(r) r.input={throttle:false,brake:true,park:true,resetPress:r.lastResetPress};}}
         stepRace(room.race,1/60);
       }
       accumulator-=1/60;tick++;

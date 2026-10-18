@@ -38,7 +38,7 @@ function installFakeSocket(){
    const {createRace}=await import('/src/simulation.js');window.testRace=createRace({laps:2,rules:'arcade',players:[{id:'me'},{id:'peer'}]});testRace.time=1;testRace.status='racing';testRace.racers[0].item='shield';socket.emit({type:'race',state:testRace});
   });
   await p.waitForTimeout(100);
-  await p.evaluate(()=>{window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyE',bubbles:true}));window.dispatchEvent(new KeyboardEvent('keyup',{code:'KeyE',bubbles:true}));});
+  await p.keyboard.press('KeyE');
   await p.waitForTimeout(120);assert.ok(await p.evaluate(()=>testSockets.at(-1).sent.some(m=>m.type==='input'&&m.input.itemPress===1&&m.input.item===false)));
   await p.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});
   await p.waitForTimeout(100);assert.equal(await p.locator('#pause-dialog').isVisible(),true);assert.equal(await p.evaluate(()=>testSockets.at(-1).sent.filter(m=>m.type==='input').at(-1).input.throttle),false);
@@ -52,15 +52,18 @@ function installFakeSocket(){
   console.log('PASS room acknowledgement timeout recovers the start button');await first.close();
 
   const {page:a,context:ca}=await pageIn(),{page:b,context:cb}=await pageIn();const code=String(Date.now()).slice(-8);
-  for(const [page,name] of [[a,'审查A'],[b,'审查B']]){await page.locator('#auto-throttle').check();await page.locator('#rules').selectOption('arcade');await page.locator('[data-mode="lan"]').tap();await page.locator('#nickname').fill(name);await page.locator('#room-code').fill(code);await page.locator('#start').tap();await page.locator('#room-dialog').waitFor({state:'visible'});}
-  await a.locator('#ready').tap();await b.locator('#ready').tap();await a.waitForFunction(()=>!document.getElementById('room-start').disabled);await a.locator('#room-start').tap();await a.waitForTimeout(3400);
+  for(const [page,name] of [[a,'审查A'],[b,'审查B']]){await page.locator('#rules').selectOption('arcade');await page.locator('[data-mode="lan"]').tap();await page.locator('#nickname').fill(name);await page.locator('#room-code').fill(code);await page.locator('#start').tap();await page.locator('#room-dialog').waitFor({state:'visible'});}
+  await a.locator('#ready').tap();await b.locator('#ready').tap();await a.waitForFunction(()=>!document.getElementById('room-start').disabled);await a.locator('#room-start').tap();
+  // Stage this pickup after the opening traffic has passed. The controller
+  // follows one fixed line; a live lateral collision is a separate driving case.
+  await a.waitForFunction(()=>__racerDebug.status==='racing'&&__racerDebug.time>3.2);
   const driver=await createDriver(a);let acquired=false;
   for(let i=0;i<150;i++){
    await driver.step(-5);
    if(await a.locator('[data-control="item"]').evaluate(el=>el.classList.contains('available'))){acquired=true;break;}await a.waitForTimeout(40);
   }
   await driver.release();assert.ok(acquired,'LAN player should collect a crate through manual steering');
-  await a.evaluate(()=>{window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyE',bubbles:true}));window.dispatchEvent(new KeyboardEvent('keyup',{code:'KeyE',bubbles:true}));});
+  await a.keyboard.press('KeyE');
   await a.waitForFunction(()=>document.getElementById('item-name').textContent==='等待道具');
   const peerId=await b.evaluate(()=>__racerDebug.playerId);await cb.close();await a.waitForFunction(id=>__racerDebug.racers.find(r=>r.id===id)?.bot,peerId);
   console.log('PASS real two-browser LAN pickup, sub-frame item tap and disconnect takeover');await ca.close();
@@ -69,11 +72,11 @@ function installFakeSocket(){
   const orientations=await renderPage.evaluate(async()=>{
    const {RaceRenderer}=await import('/src/renderer.js'),{createRace}=await import('/src/simulation.js'),{getTrack,TRACKS}=await import('/src/tracks.js'),THREE=await import('/vendor/three.module.js');
    const container=document.createElement('div');container.style.cssText='position:fixed;inset:0';document.body.append(container);const view=new RaceRenderer(container),out=[];let renderTime=1;
-   for(const track of TRACKS){const state=createRace({track:track.id}),me=state.racers[0];me.s=70;view.setRace(state);
-    for(const vx of [3,-3]){me.vx=vx;me.headingError=vx*.04;for(let i=0;i<60;i++)view.render(state,me.id,1/60,renderTime+=1/60);const pose=getTrack(track.id).sample(me.s),forward=new THREE.Vector3(0,0,1).applyQuaternion(view.cars.get(me.id).quaternion);out.push({track:track.id,vx,lateralHeading:forward.x*pose.nx+forward.z*pose.nz});}
+   for(const track of TRACKS){const state=createRace({track:track.id}),me=state.racers[0];view.setRace(state);
+    for(const offset of [.12,-.12]){const pose=getTrack(track.id).sample(me.s);me.heading=pose.yaw+offset;for(let i=0;i<60;i++)view.render(state,me.id,1/60,renderTime+=1/60);const forward=new THREE.Vector3(0,0,1).applyQuaternion(view.cars.get(me.id).quaternion);out.push({track:track.id,offset,lateralHeading:forward.x*pose.nx+forward.z*pose.nz});}
    }return out;
   });
-  for(const o of orientations)assert.equal(Math.sign(o.lateralHeading),Math.sign(o.vx),JSON.stringify(o));console.log('PASS vehicle heading matches sideways steering on all three tracks');await rc.close();
+  for(const o of orientations)assert.equal(Math.sign(o.lateralHeading),Math.sign(o.offset),JSON.stringify(o));console.log('PASS rendered orientation follows the independent world heading on all three tracks');await rc.close();
   assert.deepEqual(errors,[]);console.log('PASS zero uncaught browser errors');
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

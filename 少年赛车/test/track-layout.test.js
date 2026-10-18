@@ -14,11 +14,11 @@ for(const config of TRACKS) {
     }
     assert.deepEqual(track.sample(0),track.sample(track.length));
   });
-  test(`${config.name}：直线上三个加速带可以沿同一车道连续通过`,()=>{
+  test(`${config.name}：道具竞速直线上三个加速带可以沿同一车道连续通过`,()=>{
     const track=getTrack(config.id),straight=track.boostStraight,pads=track.objects.filter(o=>o.section==='boost-straight');
     assert.equal(pads.length,3);assert.equal(new Set(pads.map(p=>p.x)).size,1);
     for(let i=0;i<pads.length;i++){const pad=pads[i];assert.equal(pad.type,'boost');assert.ok(pad.s-straight.s>=50);assert.ok(straight.s+straight.length-pad.s>=110);assert.ok(Math.abs(track.curvature(pad.s))<1e-8);if(i)assert.ok(pad.s-pads[i-1].s>BOOST_PAD.length+10);}
-    for(const rules of ['circuit','arcade']) {
+    for(const rules of ['arcade']) {
       const race=createRace({track:config.id,rules});race.time=1;race.racers.slice(1).forEach(r=>r.finishTime=0);const me=race.racers[0];Object.assign(me,{s:straight.s+15,x:0,v:45,input:{throttle:true}});
       const collected=new Set();let minimumBoost=Infinity;
       for(let i=0;i<10*60&&me.s<straight.s+straight.length-20;i++){

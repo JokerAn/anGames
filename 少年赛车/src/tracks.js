@@ -11,11 +11,12 @@ export const ENGINES = [
 export const TRACKS = [
   {id: 'coast', name: '海岸公路', tag: 'COAST CIRCUIT', desc: '临海弯道与 320 米连续加速直线', difficulty: '入门', color: '#7fa2a5', sky: '#a7bdc5', ground: '#8d9272', road: '#353a3d', radius: [175, 128], wave: 13, hills: 2.5, theme: 'coast'},
   {id: 'canyon', name: '山岭隘口', tag: 'MOUNTAIN PASS', desc: '起伏山路与 320 米连续加速直线', difficulty: '进阶', color: '#b39671', sky: '#c5c1b3', ground: '#777d60', road: '#383a38', radius: [157, 134], wave: 36, hills: 8, theme: 'creek'},
-  {id: 'neon', name: '都市夜环', tag: 'NIGHT EXPRESS', desc: '城市灯火与 320 米连续加速直线', difficulty: '挑战', color: '#8899b3', sky: '#101824', ground: '#293034', road: '#252b30', radius: [165, 145], wave: 27, hills: 4, theme: 'cyber'},
+  {id: 'neon', night:true, lightShow:true, name: '都市夜环', tag: 'NIGHT EXPRESS', desc: '城市灯火与 320 米连续加速直线', difficulty: '挑战', color: '#8899b3', sky: '#101824', ground: '#293034', road: '#252b30', radius: [165, 145], wave: 27, hills: 4, theme: 'cyber'},
+  {id:'arcade',name:'霓虹游乐场',tag:'NEON PLAYGROUND',desc:'穿越光环隧道、追逐灯海与火箭补给，体验电玩城夜赛',difficulty:'街机',color:'#ed6bff',sky:'#100722',ground:'#171128',road:'#1b1630',radius:[205,118],wave:20,hills:3.5,theme:'arcade',night:true,lightShow:true},
 ];
 export const ROAD_HALF = 9;
-// Gradually reduce steering lock at speed; full digital input remains controllable.
-export const steeringLimit = speed => .52/(1+.03*speed+.0006*speed*speed);
+// Arcade steering gives a larger mechanical lock, with a finite speed taper.
+export const steeringLimit = speed => {const v=Number.isFinite(speed)?Math.abs(speed):0;return .84/(1+.02*v+.0004*v*v);};
 // The rendered crate and pickup sweep share dimensions; extra reach includes the car body.
 export const PICKUP_BOX = {size: 1.5, halfWidth: 2.25, halfLength: 3.2, respawnSeconds: 3};
 // Shared by the rendered pad and swept vehicle contact, including mirrors/bumper.
@@ -92,7 +93,7 @@ export function getTrack(id = 'coast') {
     if(inStraightZone(s)||pads.some(pad=>Math.abs(shortDistance(s,pad.s,length))<22)||pickups.some(o=>Math.abs(shortDistance(s,o.s,length))<30))continue;
     pickups.push({s,x:[-5,0,5][i%3]});
   }
-  pickups.forEach((o,i)=>objects.push({id:`box${i}`,type:'box',...o,width:1.7}));
+  pickups.forEach((o,i)=>objects.push({id:`box${i}`,type:'box',...o,width:1.7,...(config.id==='arcade'&&i<2?{itemKind:i===0?'rocket':'frost'}:{})}));
   // Hazards occupy technical sections only, with a full-lane boost approach/runoff.
   let hazardIndex=0;
   for(let i=0;i<36;i++) {

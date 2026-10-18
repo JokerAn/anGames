@@ -33,12 +33,12 @@ test('键盘自动重复不重复记为点击；隐藏页面停止自动油门',
   doc.hidden=true;emit(doc,'visibilitychange');const input=controls.read();assert.equal(input.throttle,false);assert.equal(input.steer,0);
 });
 
-test('刹车覆盖自动油门，触摸取消与键盘松开后恢复，禁用时安全刹车',t=>{
-  const {controls,win,buttons,emit}=fixture(t);controls.autoThrottle=true;
+test('旧自动油门开关始终无效，刹车取消或松开不补油，禁用时安全停车',t=>{
+  const {controls,win,buttons,emit}=fixture(t);controls.autoThrottle=true;assert.equal(controls.read().throttle,false);
   emit(buttons.brake,'pointerdown',{pointerId:8});assert.equal(controls.read().brake,true);assert.equal(controls.read().throttle,false);
-  emit(buttons.brake,'pointercancel',{pointerId:8});assert.equal(controls.read().brake,false);assert.equal(controls.read().throttle,true);
-  emit(win,'keydown',{code:'KeyS'});assert.equal(controls.read().brake,true);emit(win,'keyup',{code:'KeyS'});assert.equal(controls.read().brake,false);
-  controls.enabled=false;assert.equal(controls.read().brake,true);assert.equal(controls.read().throttle,false);
+  emit(buttons.brake,'pointercancel',{pointerId:8});assert.equal(controls.read().brake,false);assert.equal(controls.read().throttle,false);
+  emit(win,'keydown',{code:'KeyS'});assert.equal(controls.read().brake,true);emit(win,'keyup',{code:'KeyS'});assert.equal(controls.read().brake,false);assert.equal(controls.read().throttle,false);
+  controls.enabled=false;assert.equal(controls.read().park,true);assert.equal(controls.read().brake,true);assert.equal(controls.read().throttle,false);
 });
 
 test('默认无自动油门，按住键盘或触摸油门才加速，释放后停止给油',t=>{
